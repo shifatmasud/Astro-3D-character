@@ -321,7 +321,7 @@ const MetaPrototype = () => {
                 viewRotateX={viewRotateX}
                 viewRotateZ={viewRotateZ}
                 uiMode={uiMode}
-                onToggleUIMode={() => setUiMode(uiMode === 'default' ? 'lean' : 'default')}
+                onToggleUIMode={() => setUiMode(prev => prev === 'default' ? 'lean' : 'default')}
                 showThemeToggle={showThemeToggle}
                 onToggleThemeButton={() => setShowThemeToggle(!showThemeToggle)}
                 isAIControlEnabled={isAIControlEnabled}
@@ -412,7 +412,7 @@ const MetaPrototype = () => {
       {uiMode === 'default' ? (
         <Dock windows={windows} toggleWindow={toggleWindow} />
       ) : (
-        <Dock windows={{ settings: { id: 'settings', title: 'Settings', isOpen: windows.control.isOpen, zIndex: 1, x: 0, y: 0, height: 600 } }} toggleWindow={() => toggleWindow('control')} />
+        <Dock windows={{ control: { ...windows.control, title: 'Settings' } } as any} toggleWindow={() => toggleWindow('control')} />
       )}
 
       {/* --- LEAN MODE WINDOW --- */}
@@ -432,7 +432,7 @@ const MetaPrototype = () => {
                 onToggleStyles={() => toggleWindow('styles')}
                 showSystemSpec={windows.systemSpec.isOpen}
                 onToggleSystemSpec={() => toggleWindow('systemSpec')}
-                view3D={view3D} onToggleView3D={() => setView3D(!view3D)} layerSpacing={layerSpacing} viewRotateX={viewRotateX} viewRotateZ={viewRotateZ} uiMode={uiMode} onToggleUIMode={() => setUiMode(uiMode === 'default' ? 'lean' : 'default')}
+                view3D={view3D} onToggleView3D={() => setView3D(!view3D)} layerSpacing={layerSpacing} viewRotateX={viewRotateX} viewRotateZ={viewRotateZ} uiMode={uiMode} onToggleUIMode={() => setUiMode(prev => prev === 'default' ? 'lean' : 'default')}
                 showThemeToggle={showThemeToggle}
                 onToggleThemeButton={() => setShowThemeToggle(!showThemeToggle)}
                 isAIControlEnabled={isAIControlEnabled}

@@ -134,6 +134,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             options={[
               { value: 'button', label: 'Button (Core)' },
               { value: 'card', label: 'Card (Package)' },
+              { value: 'playground', label: 'Playground (3D)' },
             ]}
           />
 

@@ -50,7 +50,8 @@ Imagine you're building with LEGOs. This project gives you a super organized box
 .
 ├── components/
 │   ├── App/
-│   │   └── MetaPrototype.tsx
+│   │   ├── MetaPrototype.tsx
+│   │   └── Character.tsx
 │   ├── Core/
 │   │   ├── AnimatedCounter.tsx
 │   │   ├── Button.tsx
@@ -97,6 +98,8 @@ Imagine you're building with LEGOs. This project gives you a super organized box
 - **AI Agent Enhancements**: Implemented a dedicated input field for the Gemini API key in the Control Panel's Agent section, with local storage persistence for convenience. The AI window now consistently opens centered on the screen and always appears on top of other windows for improved visibility.
 - **System Spec Window**: Added a dedicated floating window that outlines the project's core rules, engineering standards, and design system. Accessible via the "System Spec" toggle in the Inspector group.
 - **Interactive Visuals**: The System Spec window features custom SVG animations and a "Copy as Markdown" utility.
+
+- **3D Character Component**: Staged a high-quality 3D astronaut character (`Character.tsx`) using React Three Fiber and GSAP. Features include walking animations, jetpack flame effects, and customizable props for colors and transformations.
 
 ## How to Get Started
 

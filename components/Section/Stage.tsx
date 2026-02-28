@@ -15,10 +15,11 @@ import { LiveProvider, LiveEditor, LiveError, LivePreview } from 'react-live';
 import * as Core from '../Core';
 import * as Package from '../Package';
 import { ErrorBoundary } from 'react-error-boundary';
+import { Playground } from '../App/Playground.tsx';
 
 
 
-const ErrorFallback = ({ error }: { error: Error }) => {
+const ErrorFallback = ({ error }: { error: any }) => {
   const { theme } = useTheme();
   return (
     <div style={{
@@ -371,47 +372,52 @@ const Stage: React.FC<StageProps> = ({
         perspective: '1000px',
         width: '100%',
         height: '100%',
+        pointerEvents: btnProps.componentType === 'playground' ? 'none' : 'auto'
     }}>
-        <motion.div 
-            style={{ 
-                position: 'relative', 
-                display: 'inline-block',
-                transformStyle: 'preserve-3d',
-                rotateX: view3D ? viewRotateX : 0,
-                rotateZ: view3D ? containerRotateZ : 0,
-                scale: btnProps.componentType === 'card' ? 1.0 : 1.5,
-            }}
-            transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-        >
-            {btnProps.componentType === 'button' ? (
-                <Button 
-                    ref={componentRef} 
-                    {...btnProps} 
-                    onClick={onButtonClick} 
-                    layerSpacing={layerSpacing}
-                    view3D={view3D}
-                />
-            ) : btnProps.componentType === 'card' ? (
-                <Card 
-                    ref={componentRef}
-                    {...btnProps}
-                    onClick={onButtonClick}
-                    layerSpacing={layerSpacing}
-                    view3D={view3D}
-                />
-            ) : (
-                <div ref={componentRef} style={{ width: '100%', height: '100%' }}>
-                  <LiveProvider code={btnProps.customCode || '() => <></>'} scope={reactLiveScope}>
-                    <LiveError style={{ backgroundColor: theme.Color.Error.Surface[1], color: theme.Color.Error.Content[1], padding: theme.spacing['Space.M'], borderRadius: theme.radius['Radius.M'], fontSize: '12px' }} />
-                    <ErrorBoundary FallbackComponent={ErrorFallback}>
-                      <LivePreview style={{ width: '100%', height: '100%' }} />
-                    </ErrorBoundary>
-                  </LiveProvider>
-                </div>
-            )}
-            {showMeasurements && anatomy && <BlueprintOverlay anatomy={anatomy} />}
-            {showTokens && anatomy && <TokenOverlay anatomy={anatomy} btnProps={btnProps} />}
-        </motion.div>
+        {btnProps.componentType === 'playground' ? (
+            <Playground />
+        ) : (
+            <motion.div 
+                style={{ 
+                    position: 'relative', 
+                    display: 'inline-block',
+                    transformStyle: 'preserve-3d',
+                    rotateX: view3D ? viewRotateX : 0,
+                    rotateZ: view3D ? containerRotateZ : 0,
+                    scale: btnProps.componentType === 'card' ? 1.0 : 1.5,
+                }}
+                transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+            >
+                {btnProps.componentType === 'button' ? (
+                    <Button 
+                        ref={componentRef} 
+                        {...btnProps} 
+                        onClick={onButtonClick} 
+                        layerSpacing={layerSpacing}
+                        view3D={view3D}
+                    />
+                ) : btnProps.componentType === 'card' ? (
+                    <Card 
+                        ref={componentRef}
+                        {...btnProps}
+                        onClick={onButtonClick}
+                        layerSpacing={layerSpacing}
+                        view3D={view3D}
+                    />
+                ) : (
+                    <div ref={componentRef} style={{ width: '100%', height: '100%' }}>
+                      <LiveProvider code={btnProps.customCode || '() => <></>'} scope={reactLiveScope}>
+                        <LiveError style={{ backgroundColor: theme.Color.Error.Surface[1], color: theme.Color.Error.Content[1], padding: theme.spacing['Space.M'], borderRadius: theme.radius['Radius.M'], fontSize: '12px' }} />
+                        <ErrorBoundary FallbackComponent={ErrorFallback}>
+                          <LivePreview style={{ width: '100%', height: '100%' }} />
+                        </ErrorBoundary>
+                      </LiveProvider>
+                    </div>
+                )}
+                {showMeasurements && anatomy && <BlueprintOverlay anatomy={anatomy} />}
+                {showTokens && anatomy && <TokenOverlay anatomy={anatomy} btnProps={btnProps} />}
+            </motion.div>
+        )}
 
         <AnimatePresence>
             {view3D && <LayerStackHUD layerSpacing={layerSpacing} isCard={btnProps.componentType === 'card'} />}
