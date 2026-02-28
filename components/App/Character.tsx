@@ -115,31 +115,10 @@ export const Character = React.memo(({
         const turnSpeedPenalty = THREE.MathUtils.mapLinear(Math.min(diff, Math.PI), 0, Math.PI, 1, 0.4);
         velocity.current.x *= turnSpeedPenalty;
         velocity.current.z *= turnSpeedPenalty;
-
-        // Procedural Lean (GTA 5 style)
-        // Lean forward based on speed
-        characterRef.current.rotation.x = THREE.MathUtils.lerp(
-          characterRef.current.rotation.x,
-          speed * 0.25,
-          0.1
-        );
-
-        // Lean sideways based on turning
-        const turnD = angleDelta(currentRotation, targetRotation);
-        characterRef.current.rotation.z = THREE.MathUtils.lerp(
-          characterRef.current.rotation.z,
-          -turnD * 0.6,
-          0.1
-        );
       }
     } else {
       velocity.current.x *= 0.8;
       velocity.current.z *= 0.8;
-      
-      if (characterRef.current) {
-        characterRef.current.rotation.x = THREE.MathUtils.lerp(characterRef.current.rotation.x, 0, 0.1);
-        characterRef.current.rotation.z = THREE.MathUtils.lerp(characterRef.current.rotation.z, 0, 0.1);
-      }
     }
 
     pos.current.x += velocity.current.x * delta;

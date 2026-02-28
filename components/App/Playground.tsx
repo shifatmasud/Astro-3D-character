@@ -29,16 +29,38 @@ const CLOUD_COUNT = 10;
 
 // --- COMPONENTS ---
 
+// --- HELPERS ---
+const createLeafTexture = () => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  
+  // Draw a simple leaf shape
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.moveTo(64, 10);
+  ctx.quadraticCurveTo(100, 40, 64, 118);
+  ctx.quadraticCurveTo(28, 40, 64, 10);
+  ctx.fill();
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  return texture;
+};
+
+const leafTexture = createLeafTexture();
+
 /**
- * 🌿 Procedural Grass using InstancedMesh
+ * 🌿 Procedural Grass using InstancedMesh (Anime Style)
  */
 const Grass = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const GRASS_COUNT_HIGH = 10000; // AAA optimization: higher count with instancing
 
   const positions = useMemo(() => {
     const pos = [];
-    for (let i = 0; i < GRASS_COUNT; i++) {
+    for (let i = 0; i < GRASS_COUNT_HIGH; i++) {
       pos.push([
         (Math.random() - 0.5) * WORLD_SIZE,
         0,
@@ -54,10 +76,10 @@ const Grass = () => {
     
     positions.forEach((p, i) => {
       dummy.position.set(p[0], p[1], p[2]);
-      // Simple wind animation
-      dummy.rotation.x = Math.sin(time + p[0] * 0.5) * 0.1;
-      dummy.rotation.z = Math.cos(time + p[2] * 0.5) * 0.1;
-      dummy.scale.set(0.5, 0.5 + Math.random() * 0.5, 0.5);
+      // Wind animation
+      dummy.rotation.y = Math.sin(time * 0.5 + p[0] * 0.1) * 0.2;
+      dummy.rotation.x = Math.cos(time * 0.3 + p[2] * 0.1) * 0.1;
+      dummy.scale.set(1.2, 1.2 + Math.random() * 0.5, 1.2);
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
     });
@@ -65,40 +87,55 @@ const Grass = () => {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, GRASS_COUNT]}>
-      <coneGeometry args={[0.05, 0.5, 3]} />
-      <meshStandardMaterial color="#4ade80" />
+    <instancedMesh ref={meshRef} args={[undefined, undefined, GRASS_COUNT_HIGH]}>
+      <planeGeometry args={[0.2, 0.8]} />
+      <meshStandardMaterial 
+        color="#4ade80" 
+        map={leafTexture} 
+        alphaTest={0.5} 
+        side={THREE.DoubleSide}
+        transparent={false}
+      />
     </instancedMesh>
   );
 };
 
 /**
- * 🌲 Procedural Tree with LOD
+ * 🌲 Procedural Tree with LOD (Anime Style)
  */
 const Tree = ({ position }: { position: [number, number, number] }) => {
   return (
-    <Detailed distances={[0, 50, 150]} position={position}>
+    <Detailed distances={[0, 80, 200]} position={position}>
       {/* High Detail */}
       <group>
-        <Cylinder args={[0.2, 0.3, 2, 6]} position={[0, 1, 0]}>
-          <meshStandardMaterial color="#78350f" />
+        <Cylinder args={[0.2, 0.4, 3, 8]} position={[0, 1.5, 0]}>
+          <meshStandardMaterial color="#5d4037" />
         </Cylinder>
-        <Sphere args={[1, 8, 8]} position={[0, 2.5, 0]}>
-          <meshStandardMaterial color="#166534" />
-        </Sphere>
+        {/* Leaf Layers */}
+        {[0, 1, 2].map((i) => (
+          <mesh key={i} position={[0, 2.5 + i * 0.8, 0]} rotation={[0, (i * Math.PI) / 3, 0]}>
+            <coneGeometry args={[1.5 - i * 0.3, 2, 8]} />
+            <meshStandardMaterial 
+              color={i === 0 ? "#2e7d32" : i === 1 ? "#388e3c" : "#43a047"} 
+              map={leafTexture}
+              alphaTest={0.5}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        ))}
       </group>
       {/* Medium Detail */}
       <group>
-        <Cylinder args={[0.2, 0.3, 2, 4]} position={[0, 1, 0]}>
-          <meshStandardMaterial color="#78350f" />
+        <Cylinder args={[0.2, 0.4, 3, 4]} position={[0, 1.5, 0]}>
+          <meshStandardMaterial color="#5d4037" />
         </Cylinder>
-        <Box args={[1.5, 1.5, 1.5]} position={[0, 2.5, 0]}>
-          <meshStandardMaterial color="#166534" />
+        <Box args={[2, 3, 2]} position={[0, 3, 0]}>
+          <meshStandardMaterial color="#2e7d32" />
         </Box>
       </group>
-      {/* Low Detail (Billboard style or simple box) */}
-      <Box args={[1, 3, 1]} position={[0, 1.5, 0]}>
-        <meshStandardMaterial color="#166534" />
+      {/* Low Detail */}
+      <Box args={[1, 4, 1]} position={[0, 2, 0]}>
+        <meshStandardMaterial color="#1b5e20" />
       </Box>
     </Detailed>
   );
