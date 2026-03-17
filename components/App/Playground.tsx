@@ -19,6 +19,7 @@ import {
 } from '@react-three/drei';
 import * as THREE from 'three';
 import { Character } from './Character';
+import { GameControls } from './Controls';
 import gsap from 'gsap';
 
 // --- CONSTANTS ---
@@ -51,21 +52,30 @@ const createLeafTexture = () => {
 const leafTexture = createLeafTexture();
 
 /**
- * 🌿 Procedural Grass using InstancedMesh (Anime Style)
+ * 🌿 Procedural Grass using InstancedMesh (Anime Style - Fluffy & Optimized)
  */
 const Grass = () => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const GRASS_COUNT_HIGH = 10000; // AAA optimization: higher count with instancing
+  const GRASS_COUNT_DENSE = 35000; // Ultra high density for "fluffy" look
+  const CULL_DISTANCE = 35; 
+  const CULL_DISTANCE_SQ = CULL_DISTANCE * CULL_DISTANCE;
+
+  // Optimized geometry: A simple triangle-based "blade" or cross
+  const grassGeo = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(0.4, 0.7);
+    geo.translate(0, 0.35, 0); // Offset so bottom is at 0
+    return geo;
+  }, []);
 
   const positions = useMemo(() => {
-    const pos = [];
-    for (let i = 0; i < GRASS_COUNT_HIGH; i++) {
-      pos.push([
-        (Math.random() - 0.5) * WORLD_SIZE,
-        0,
-        (Math.random() - 0.5) * WORLD_SIZE
-      ]);
+    const pos = new Float32Array(GRASS_COUNT_DENSE * 4); // x, y, z, rot
+    for (let i = 0; i < GRASS_COUNT_DENSE; i++) {
+      const stride = i * 4;
+      pos[stride] = (Math.random() - 0.5) * WORLD_SIZE;
+      pos[stride + 1] = 0;
+      pos[stride + 2] = (Math.random() - 0.5) * WORLD_SIZE;
+      pos[stride + 3] = Math.random() * Math.PI;
     }
     return pos;
   }, []);
@@ -73,28 +83,52 @@ const Grass = () => {
   useFrame((state) => {
     if (!meshRef.current) return;
     const time = state.clock.getElapsedTime();
+    const playerPos = state.camera.position;
     
-    positions.forEach((p, i) => {
-      dummy.position.set(p[0], p[1], p[2]);
-      // Wind animation
-      dummy.rotation.y = Math.sin(time * 0.5 + p[0] * 0.1) * 0.2;
-      dummy.rotation.x = Math.cos(time * 0.3 + p[2] * 0.1) * 0.1;
-      dummy.scale.set(1.2, 1.2 + Math.random() * 0.5, 1.2);
+    for (let i = 0; i < GRASS_COUNT_DENSE; i++) {
+      const stride = i * 4;
+      const px = positions[stride];
+      const pz = positions[stride + 2];
+      
+      const dx = px - playerPos.x;
+      const dz = pz - playerPos.z;
+      const distSq = dx * dx + dz * dz;
+
+      if (distSq < CULL_DISTANCE_SQ) {
+        dummy.position.set(px, 0, pz);
+        // Fluffy wind: multi-layered sine waves
+        const noise = Math.sin(time * 1.2 + px * 0.3) * Math.cos(time * 0.7 + pz * 0.3);
+        dummy.rotation.set(noise * 0.2, positions[stride + 3] + noise * 0.1, noise * 0.1);
+        
+        // Smooth scale fade at edges
+        const scaleFactor = Math.min(1, (CULL_DISTANCE_SQ - distSq) / (CULL_DISTANCE_SQ * 0.15));
+        dummy.scale.set(1.4 * scaleFactor, (1.0 + Math.random() * 0.5) * scaleFactor, 1.4 * scaleFactor);
+      } else {
+        dummy.scale.set(0, 0, 0);
+      }
+      
       dummy.updateMatrix();
-      meshRef.current!.setMatrixAt(i, dummy.matrix);
-    });
+      meshRef.current.setMatrixAt(i, dummy.matrix);
+    }
     meshRef.current.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, GRASS_COUNT_HIGH]}>
-      <planeGeometry args={[0.2, 0.8]} />
+    <instancedMesh 
+      ref={meshRef} 
+      args={[grassGeo, undefined, GRASS_COUNT_DENSE]} 
+      castShadow={false} 
+      receiveShadow={true}
+      frustumCulled={true}
+    >
       <meshStandardMaterial 
-        color="#4ade80" 
+        color="#bbf7d0" // Lighter, fluffier green
         map={leafTexture} 
-        alphaTest={0.5} 
+        alphaTest={0.7} 
         side={THREE.DoubleSide}
         transparent={false}
+        roughness={0.8}
+        metalness={0.1}
       />
     </instancedMesh>
   );
@@ -203,93 +237,13 @@ const Clouds = () => {
 };
 
 /**
- * 🕹️ COD Mobile Inspired Controls
- */
-const Controls = ({ 
-  mvX, 
-  mvY, 
-  mvJump 
-}: { 
-  mvX: MotionValue<number>; 
-  mvY: MotionValue<number>; 
-  mvJump: MotionValue<number>;
-}) => {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'w') mvY.set(1);
-      if (e.key === 's') mvY.set(-1);
-      if (e.key === 'a') mvX.set(-1);
-      if (e.key === 'd') mvX.set(1);
-      if (e.key === ' ') mvJump.set(1);
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (['w', 's'].includes(e.key)) mvY.set(0);
-      if (['a', 'd'].includes(e.key)) mvX.set(0);
-      if (e.key === ' ') mvJump.set(0);
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [mvX, mvY, mvJump]);
-
-  return (
-    <OrbitControls 
-      enableDamping 
-      dampingFactor={0.05} 
-      rotateSpeed={0.5}
-      minDistance={5}
-      maxDistance={50}
-      maxPolarAngle={Math.PI / 2.1}
-    />
-  );
-};
-
-/**
  * 🏟️ Main Playground Component
  */
 export const Playground = React.memo(() => {
-  const joystickRef = useRef<HTMLDivElement>(null);
-  const joystickActive = useRef(false);
-  
   // Motion Values for high-frequency updates without re-renders
   const mvX = useMotionValue(0);
   const mvY = useMotionValue(0);
   const mvJump = useMotionValue(0);
-
-  // Derived motion values for the joystick knob UI
-  const knobX = useTransform(mvX, [-1, 1], [-40, 40]);
-  const knobY = useTransform(mvY, [-1, 1], [40, -40]);
-
-  const handleJoystickTouch = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    if (!joystickRef.current) return;
-    const rect = joystickRef.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    
-    let clientX, clientY;
-    if ('touches' in e && e.touches.length > 0) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = (e as React.MouseEvent).clientX;
-      clientY = (e as React.MouseEvent).clientY;
-    }
-
-    const dx = (clientX - centerX) / (rect.width / 2);
-    const dy = -(clientY - centerY) / (rect.height / 2);
-    
-    // Clamp to -1, 1
-    const x = Math.max(-1, Math.min(1, dx));
-    const y = Math.max(-1, Math.min(1, dy));
-    
-    mvX.set(x);
-    mvY.set(y);
-  }, [mvX, mvY]);
 
   return (
     <div style={{ 
@@ -343,86 +297,21 @@ export const Playground = React.memo(() => {
         {/* Character */}
         <Character mvX={mvX} mvY={mvY} mvJump={mvJump} />
 
-        {/* Controls */}
-        <Controls mvX={mvX} mvY={mvY} mvJump={mvJump} />
+        {/* 3D Controls */}
+        <OrbitControls 
+          enableDamping 
+          dampingFactor={0.05} 
+          rotateSpeed={0.5}
+          minDistance={5}
+          maxDistance={50}
+          maxPolarAngle={Math.PI / 2.1}
+        />
         
         <ContactShadows position={[0, 0, 0]} opacity={0.4} scale={20} blur={2} far={4.5} />
       </Canvas>
 
-      {/* Virtual Joystick UI (Simplified) */}
-      <div 
-        ref={joystickRef}
-        draggable={false}
-        onMouseDown={() => { joystickActive.current = true; }}
-        onMouseMove={(e) => joystickActive.current && handleJoystickTouch(e)}
-        onMouseUp={() => { joystickActive.current = false; mvX.set(0); mvY.set(0); }}
-        onMouseLeave={() => { joystickActive.current = false; mvX.set(0); mvY.set(0); }}
-        onTouchStart={(e) => { joystickActive.current = true; handleJoystickTouch(e); }}
-        onTouchMove={(e) => joystickActive.current && handleJoystickTouch(e)}
-        onTouchEnd={() => { joystickActive.current = false; mvX.set(0); mvY.set(0); }}
-        style={{
-          position: 'absolute',
-          bottom: '40px',
-          left: '40px',
-          width: '120px',
-          height: '120px',
-          borderRadius: '50%',
-          background: 'rgba(255,255,255,0.1)',
-          border: '2px solid rgba(255,255,255,0.2)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          pointerEvents: 'auto',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          zIndex: 20,
-          touchAction: 'none',
-          cursor: 'pointer'
-        }}
-      >
-        <motion.div style={{
-          width: '40px',
-          height: '40px',
-          borderRadius: '50%',
-          background: 'rgba(255,255,255,0.3)',
-          x: knobX,
-          y: knobY
-        }} />
-      </div>
-
-      <div style={{
-        position: 'absolute',
-        bottom: '40px',
-        right: '40px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
-        zIndex: 10
-      }}>
-        <button 
-          draggable={false}
-          onMouseDown={() => mvJump.set(1)}
-          onMouseUp={() => mvJump.set(0)}
-          onTouchStart={() => mvJump.set(1)}
-          onTouchEnd={() => mvJump.set(0)}
-          style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.2)',
-            border: 'none',
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '12px',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            cursor: 'pointer',
-            pointerEvents: 'auto'
-          }}
-        >
-          JUMP
-        </button>
-      </div>
+      {/* Game UI & Input Logic */}
+      <GameControls mvX={mvX} mvY={mvY} mvJump={mvJump} />
     </div>
   );
 });

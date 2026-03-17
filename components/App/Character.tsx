@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { MotionValue } from 'framer-motion';
-import { Box, Capsule } from '@react-three/drei';
+import { Box, Capsule, Cylinder } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGSAP } from '@gsap/react';
@@ -94,8 +94,8 @@ export const Character = React.memo(({
         .addScaledVector(right, x)
         .normalize();
 
-      velocity.current.x = moveDir.x * 5 * speed;
-      velocity.current.z = moveDir.z * 5 * speed;
+      velocity.current.x = moveDir.x * 9 * speed;
+      velocity.current.z = moveDir.z * 9 * speed;
 
       if (characterRef.current) {
         const targetRotation = Math.atan2(moveDir.x, moveDir.z);
@@ -103,7 +103,7 @@ export const Character = React.memo(({
         const diff = Math.abs(angleDelta(currentRotation, targetRotation));
         
         // Faster rotation for larger turns (GTA style pivot)
-        const rotationFactor = diff > Math.PI * 0.6 ? 0.35 : 0.2;
+        const rotationFactor = diff > Math.PI * 0.6 ? 0.5 : 0.3;
         
         characterRef.current.rotation.y = lerpAngle(
           currentRotation, 
@@ -174,7 +174,7 @@ export const Character = React.memo(({
         {/* Main Body Group */}
         <group ref={bodyRef} position={[0, 0.8, 0]}>
             {/* Body Capsule */}
-            <Capsule args={[0.35, 0.6, 2, 6]}>
+            <Capsule args={[0.35, 0.6, 8, 12]}>
               <meshStandardMaterial color={activeBodyColor} />
             </Capsule>
 
@@ -200,19 +200,26 @@ export const Character = React.memo(({
 
             {/* Visor */}
             <Box args={[0.4, 0.25, 0.15]} position={[0, 0.2, 0.3]}>
-              <meshStandardMaterial color={visorColor} roughness={0.2} metalness={0.8} />
+              <meshPhysicalMaterial 
+                color={visorColor} 
+                roughness={0.1} 
+                metalness={0.0} 
+                transmission={0.8} 
+                thickness={0.5} 
+                transparent 
+              />
             </Box>
         </group>
 
         {/* Legs */}
         <group position={[0, 0.3, 0]}>
             <group ref={leftLegRef} position={[-0.15, 0, 0]}>
-                <Capsule args={[0.12, 0.3, 2, 4]} position={[0, -0.15, 0]}>
+                <Capsule args={[0.12, 0.3, 8, 8]} position={[0, -0.15, 0]}>
                     <meshStandardMaterial color={activeBodyColor} />
                 </Capsule>
             </group>
             <group ref={rightLegRef} position={[0.15, 0, 0]}>
-                <Capsule args={[0.12, 0.3, 2, 4]} position={[0, -0.15, 0]}>
+                <Capsule args={[0.12, 0.3, 8, 8]} position={[0, -0.15, 0]}>
                     <meshStandardMaterial color={activeBodyColor} />
                 </Capsule>
             </group>
