@@ -43,17 +43,38 @@ const ChubbyPhalanx = ({
     {/* Smooth joint knuckle */}
     <mesh>
       <sphereGeometry args={[radius * 1.1, 16, 16]} />
-      <meshStandardMaterial color={color} roughness={0.4} metalness={0.15} />
+      <meshStandardMaterial 
+        color={color} 
+        roughness={0.4} 
+        metalness={0.15} 
+        polygonOffset 
+        polygonOffsetFactor={1} 
+        polygonOffsetUnits={1} 
+      />
     </mesh>
     {/* Chubby bone segment */}
     <mesh position={[0, length / 2, 0]}>
       <cylinderGeometry args={[radius * 0.95, radius, length, 16]} />
-      <meshStandardMaterial color={color} roughness={0.4} metalness={0.1} />
+      <meshStandardMaterial 
+        color={color} 
+        roughness={0.4} 
+        metalness={0.1} 
+        polygonOffset 
+        polygonOffsetFactor={1} 
+        polygonOffsetUnits={1} 
+      />
     </mesh>
     {/* Round finger tip */}
     <mesh position={[0, length, 0]}>
       <sphereGeometry args={[radius * 0.95, 16, 16]} />
-      <meshStandardMaterial color={color} roughness={0.4} metalness={0.15} />
+      <meshStandardMaterial 
+        color={color} 
+        roughness={0.4} 
+        metalness={0.15} 
+        polygonOffset 
+        polygonOffsetFactor={1} 
+        polygonOffsetUnits={1} 
+      />
     </mesh>
   </group>
 );
@@ -65,6 +86,7 @@ interface FloatingHandProps {
   scale?: number;
   position?: [number, number, number];
   gripType: 'open' | 'fist' | 'pistol' | 'knife';
+  isShooting?: boolean;
   children?: React.ReactNode;
 }
 
@@ -74,6 +96,7 @@ const FloatingHand = ({
   scale = 1, 
   position = [0, 0, 0],
   gripType,
+  isShooting = false,
   children
 }: FloatingHandProps) => {
   const handRef = useRef<THREE.Group>(null);
@@ -143,6 +166,7 @@ const FloatingHand = ({
     const pinkyBreathe  = Math.sin(t * waveSpeed + 0.9) * 0.06 + 0.07;
 
     // Default resting values (Bottom-left/Top-right style cupped hand shapes)
+    let targetThumbX = 0.1;
     let targetThumbY = (0.16 + Math.sin(t * 1.5) * 0.02) * sideSign;
     let targetThumbZ = (-Math.PI / 4.6 - indexBreathe * 0.25) * sideSign;
     let targetIndexX = indexBreathe;
@@ -173,20 +197,26 @@ const FloatingHand = ({
       targetRingTipX = 1.54 * tremor;
       targetPinkyTipX = 1.48 * tremor;
     } else if (gripType === 'pistol') {
-      // Dynamic recoil trigger finger (Index rests, middle-ring-pinky wrap firmly like bottom-right image)
-      const wiggle = Math.sin(t * 2) * 0.015;
-      targetThumbY = 0.05 * sideSign;
-      targetThumbZ = -1.02 * sideSign;
-      targetIndexX = 0.22 + wiggle; // Index extended on trigger guard
-      targetMiddleX = 1.44 + wiggle;
-      targetRingX = 1.42 + wiggle;
-      targetPinkyX = 1.36 + wiggle;
+      // Adjusted for "Finger Gun" style: Index finger points straight forward like a gun barrel
+      // Other fingers (middle, ring, pinky) wrap tight around the handle coordinates.
+      // Thumb points to the sky upwards as requested.
+      const flex = 1.0 + Math.sin(t * 18) * 0.008;
+      const squeeze = isShooting ? 0.35 : 0.02; // Straightened index
+      const squeezeTip = isShooting ? 0.55 : 0.05; // Straightened tip
 
-      targetThumbTipX = 0.15;
-      targetIndexTipX = 0.32 + wiggle;
-      targetMiddleTipX = 1.25 + wiggle;
-      targetRingTipX = 1.22 + wiggle;
-      targetPinkyTipX = 1.18 + wiggle;
+      targetThumbX = 0.15 * flex; // Simplified: No longer counter-rotating against hand pitch
+      targetThumbY = 0.45 * sideSign * flex; // Splay out slightly
+      targetThumbZ = -0.1 * sideSign; // Natural splay
+      targetIndexX = squeeze * flex;
+      targetMiddleX = 1.6 * flex; // Tighter grip on remaining fingers
+      targetRingX = 1.55 * flex;
+      targetPinkyX = 1.5 * flex;
+
+      targetThumbTipX = 0.05 * flex; // Mostly uncurled tip
+      targetIndexTipX = squeezeTip * flex;
+      targetMiddleTipX = 1.45 * flex;
+      targetRingTipX = 1.4 * flex;
+      targetPinkyTipX = 1.35 * flex;
     } else if (gripType === 'knife') {
       // Confident grip wrapping firm handle coordinates (Bottom-right grasping claw)
       const flex = 1.0 + Math.sin(t * 18) * 0.008;
@@ -207,6 +237,7 @@ const FloatingHand = ({
     // Apply base and tip rotations with smooth interpolation
     const lerpSpeed = 0.22;
     if (thumbBaseRef.current) {
+      thumbBaseRef.current.rotation.x = THREE.MathUtils.lerp(thumbBaseRef.current.rotation.x, targetThumbX, lerpSpeed);
       thumbBaseRef.current.rotation.y = THREE.MathUtils.lerp(thumbBaseRef.current.rotation.y, targetThumbY, lerpSpeed);
       thumbBaseRef.current.rotation.z = THREE.MathUtils.lerp(thumbBaseRef.current.rotation.z, targetThumbZ, lerpSpeed);
     }
@@ -248,7 +279,14 @@ const FloatingHand = ({
       <group ref={wristRef}>
         {/* Palm as a cute thick globular bubble */}
         <RoundedBox args={[0.16, 0.16, 0.08]} radius={0.045} smoothness={5} position={[0, 0.04, 0]}>
-          <meshStandardMaterial color={color} roughness={0.35} metalness={0.15} />
+          <meshStandardMaterial 
+            color={color} 
+            roughness={0.35} 
+            metalness={0.15} 
+            polygonOffset 
+            polygonOffsetFactor={1} 
+            polygonOffsetUnits={1} 
+          />
         </RoundedBox>
 
         {/* Nested attached weapons */}
@@ -332,33 +370,139 @@ const KnifeAttachment = ({ isLeft, active }: { isLeft: boolean; active: boolean 
       groupRef.current.scale.setScalar(transitionVal.current);
       
       // Animate position: slide up from palm core bottom (Y = -0.06) up to slotting knuckle position (Y = 0.045)
-      groupRef.current.position.y = THREE.MathUtils.lerp(-0.06, 0.045, transitionVal.current);
-      groupRef.current.position.z = THREE.MathUtils.lerp(-0.02, 0.015, transitionVal.current);
+      groupRef.current.position.y = THREE.MathUtils.lerp(-0.06, 0.04, transitionVal.current);
+      groupRef.current.position.z = THREE.MathUtils.lerp(-0.02, 0.035, transitionVal.current);
       
       // Animate rotation: twist slightly on draw/grabbing
-      groupRef.current.rotation.x = THREE.MathUtils.lerp(Math.PI / 4, 0.12, transitionVal.current);
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(Math.PI / 4, 0.25, transitionVal.current);
+      // Corrected relative rotation for better grip alignment
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(0, isLeft ? -0.1 : 0.1, transitionVal.current);
     }
   });
 
+  // CHANGE: Created a single custom BufferGeometry blade that combines the spine and tapered point.
+  // EXPLANATION: Eliminates bad overlapping multi-geometry seams and lighting artifacts. Only the tip is sharped/tapered.
+  // HOW TO UNDO: Revert to the old <group> with separate <Box> and cylinder mesh.
+  const bladeGeometry = React.useMemo(() => {
+    const geom = new THREE.BufferGeometry();
+    
+    const w = 0.045; // Width of the blade
+    const h_body = 0.176; // Rectangle part height
+    const h_total = 0.22; // Total height including tapered tip
+    const t = 0.012; // Thickness (depth) of the spine
+    
+    // Define positions for all triangles in a non-indexed array
+    const vertices = new Float32Array([
+      // Body Front Face - Triangle 1
+      -w/2, 0, t/2,
+      w/2, 0, t/2,
+      w/2, h_body, t/2,
+      
+      // Body Front Face - Triangle 2
+      -w/2, 0, t/2,
+      w/2, h_body, t/2,
+      -w/2, h_body, t/2,
+
+      // Body Back Face - Triangle 1
+      w/2, 0, -t/2,
+      -w/2, 0, -t/2,
+      -w/2, h_body, -t/2,
+      
+      // Body Back Face - Triangle 2
+      w/2, 0, -t/2,
+      -w/2, h_body, -t/2,
+      w/2, h_body, -t/2,
+
+      // Body Left Face - Triangle 1
+      -w/2, 0, -t/2,
+      -w/2, 0, t/2,
+      -w/2, h_body, t/2,
+      
+      // Body Left Face - Triangle 2
+      -w/2, 0, -t/2,
+      -w/2, h_body, t/2,
+      -w/2, h_body, -t/2,
+
+      // Body Right Face - Triangle 1
+      w/2, 0, t/2,
+      w/2, 0, -t/2,
+      w/2, h_body, -t/2,
+      
+      // Body Right Face - Triangle 2
+      w/2, 0, t/2,
+      w/2, h_body, -t/2,
+      w/2, h_body, t/2,
+
+      // Tip Front Face
+      -w/2, h_body, t/2,
+      w/2, h_body, t/2,
+      0, h_total, 0,
+
+      // Tip Back Face
+      w/2, h_body, -t/2,
+      -w/2, h_body, -t/2,
+      0, h_total, 0,
+
+      // Tip Left Face
+      -w/2, h_body, -t/2,
+      -w/2, h_body, t/2,
+      0, h_total, 0,
+
+      // Tip Right Face
+      w/2, h_body, t/2,
+      w/2, h_body, -t/2,
+      0, h_total, 0,
+
+      // Bottom Face - Triangle 1
+      -w/2, 0, t/2,
+      -w/2, 0, -t/2,
+      w/2, 0, -t/2,
+
+      // Bottom Face - Triangle 2
+      -w/2, 0, t/2,
+      w/2, 0, -t/2,
+      w/2, 0, t/2,
+    ]);
+
+    geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    geom.computeVertexNormals();
+    return geom;
+  }, []);
+
   return (
-    <group ref={groupRef} rotation={[0.12, 0, isLeft ? -0.12 : 0.12]}>
+    <group ref={groupRef} rotation={[0.25, 0, isLeft ? -Math.PI / 2 : Math.PI / 2]}>
       {/* Wood grip handle */}
       <Cylinder args={[0.022, 0.022, 0.15, 8]} position={[0, 0, 0]}>
-        <meshStandardMaterial color="#653b1b" roughness={0.7} />
+        <meshStandardMaterial 
+          color="#653b1b" 
+          roughness={0.7} 
+          polygonOffset 
+          polygonOffsetFactor={-1} 
+          polygonOffsetUnits={-1}
+        />
       </Cylinder>
       {/* Crossguard */}
       <Box args={[0.065, 0.015, 0.03]} position={[0, 0.075, 0]}>
-        <meshStandardMaterial color="#718096" roughness={0.15} metalness={0.9} />
+        <meshStandardMaterial 
+          color="#718096" 
+          roughness={0.15} 
+          metalness={0.9} 
+          polygonOffset 
+          polygonOffsetFactor={-1} 
+          polygonOffsetUnits={-1}
+        />
       </Box>
-      {/* Blade */}
-      <group position={[0, 0.18, 0]}>
-        <Box args={[0.045, 0.19, 0.012]} position={[0, 0, 0]}>
-          <meshStandardMaterial color="#cbd5e0" roughness={0.05} metalness={0.98} />
-        </Box>
-        <Box args={[0.025, 0.08, 0.008]} position={[-0.01, 0.095, 0]} rotation={[0, 0, -Math.PI / 10]}>
-          <meshStandardMaterial color="#edf2f7" roughness={0.05} metalness={0.98} />
-        </Box>
-      </group>
+      {/* Single seamless blade with tapered sharp tip */}
+      <mesh geometry={bladeGeometry} position={[0, 0.075, 0]}>
+        <meshStandardMaterial 
+          color="#cbd5e0" 
+          roughness={0.05} 
+          metalness={0.98} 
+          polygonOffset 
+          polygonOffsetFactor={-1} 
+          polygonOffsetUnits={-1}
+        />
+      </mesh>
     </group>
   );
 };
@@ -377,6 +521,19 @@ const HandgunAttachment = ({
   const groupRef = useRef<THREE.Group>(null);
   const transitionVal = useRef(0);
 
+  // Custom simulation variables for high-fidelity mechanical trigger actions
+  const slideZ = useRef(0);
+  const triggerRot = useRef(0);
+  const hammerRot = useRef(0);
+  const lastFlashActive = useRef(false);
+
+  // Brass bullet casing particle physics state references
+  const shellActive = useRef(false);
+  const shellPos = useRef(new THREE.Vector3());
+  const shellVel = useRef(new THREE.Vector3());
+  const shellRot = useRef(new THREE.Vector3());
+  const shellRotVel = useRef(new THREE.Vector3());
+
   useFrame((state, delta) => {
     const target = active ? 1 : 0;
     transitionVal.current = THREE.MathUtils.lerp(transitionVal.current, target, 1 - Math.exp(-15 * delta));
@@ -386,49 +543,210 @@ const HandgunAttachment = ({
       groupRef.current.scale.setScalar(transitionVal.current);
       
       // Animate position: slide up from palm bottom Y = -0.05 to sliding slot Y = 0.045, and Z = 0.025
-      groupRef.current.position.y = THREE.MathUtils.lerp(-0.05, 0.045, transitionVal.current);
+      groupRef.current.position.y = THREE.MathUtils.lerp(-0.05, 0.045, transitionVal.current); // Slightly raised for finger alignment
       groupRef.current.position.z = THREE.MathUtils.lerp(-0.01, 0.025, transitionVal.current);
       
-      // Animate rotation: slight dynamic forward cocking angle
-      groupRef.current.rotation.x = THREE.MathUtils.lerp(-0.3, isLeft ? -0.05 : 0.05, transitionVal.current);
+      // ALIGNED WITH FINGER-BARREL AXIS: Rotate around local Y so gun handles point straight down vertically
+      groupRef.current.rotation.order = 'YXZ';
+      groupRef.current.rotation.x = 0;
+      groupRef.current.rotation.y = isLeft ? -Math.PI / 2 : Math.PI / 2;
+      groupRef.current.rotation.z = 0;
+    }
+
+    // Capture exact frame in which weapon shoots to trigger blowback recoil & shell ejection
+    if (flashActive && !lastFlashActive.current) {
+      slideZ.current = -0.055; // Bolt slide moves back
+      triggerRot.current = -0.32; // Trigger pulls back
+      hammerRot.current = 0.45; // Hammer rotates back
+      
+      // Eject a shiny golden hollow bullet casing out of ejection port
+      shellActive.current = true;
+      shellPos.current.set(isLeft ? -0.012 : 0.012, 0.048, 0.038);
+      shellVel.current.set(
+        (isLeft ? -0.35 : 0.35) + (Math.random() - 0.5) * 0.1,
+        0.52 + Math.random() * 0.15,
+        -0.15 - Math.random() * 0.15
+      );
+      shellRot.current.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      shellRotVel.current.set(12 + Math.random() * 8, 12 + Math.random() * 8, 12 + Math.random() * 8);
+    }
+    lastFlashActive.current = flashActive;
+
+    // Decay recoil offsets smoothly back to normal
+    slideZ.current = THREE.MathUtils.lerp(slideZ.current, 0, 1 - Math.exp(-18 * delta));
+    triggerRot.current = THREE.MathUtils.lerp(triggerRot.current, 0, 1 - Math.exp(-22 * delta));
+    hammerRot.current = THREE.MathUtils.lerp(hammerRot.current, -0.18, 1 - Math.exp(-6 * delta));
+
+    // Casing falling gravity updates
+    if (shellActive.current) {
+      shellVel.current.y -= 9.8 * delta * 0.65;
+      shellPos.current.addScaledVector(shellVel.current, delta);
+      shellRot.current.addScaledVector(shellRotVel.current, delta);
+      if (shellPos.current.y < -0.35) {
+        shellActive.current = false;
+      }
     }
   });
 
   return (
-    <group ref={groupRef} rotation={[isLeft ? -0.05 : 0.05, 0, 0]}>
-      {/* Handle grip */}
-      <Box args={[0.032, 0.09, 0.052]} position={[0, -0.012, -0.018]} rotation={[-Math.PI / 8, 0, 0]}>
-        <meshStandardMaterial color="#0f172a" roughness={0.8} />
-      </Box>
+    <group ref={groupRef} rotation={[-Math.PI / 2, 0, 0]}>
+      
+      {/* 1. FRAME & CARBO-STEEL GRIP */}
+      <group>
+        {/* Handle main block */}
+        <Box args={[0.032, 0.09, 0.052]} position={[0, 0, 0]} rotation={[-Math.PI / 8, 0, 0]}>
+          <meshStandardMaterial 
+            color="#27272a" 
+            roughness={0.45} 
+            metalness={0.88}
+            polygonOffset 
+            polygonOffsetFactor={-1} 
+            polygonOffsetUnits={-1}
+          />
+        </Box>
+        
+        {/* Luxurious textured metal panels on outer sides (Gold Core Accents) */}
+        <Box args={[0.034, 0.065, 0.035]} position={[0, -0.01, 0.005]} rotation={[-Math.PI / 8, 0, 0]}>
+          <meshStandardMaterial 
+            color="#ca8a04" 
+            roughness={0.18} 
+            metalness={0.96} 
+            polygonOffset 
+            polygonOffsetFactor={-1.5} 
+            polygonOffsetUnits={-1.5}
+          />
+        </Box>
+        
+        {/* Trigger guard frame loop */}
+        <Box args={[0.012, 0.008, 0.045]} position={[0, 0.002, 0.033]}>
+          <meshStandardMaterial 
+            color="#18181b" 
+            roughness={0.35} 
+            metalness={0.92} 
+            polygonOffset 
+            polygonOffsetFactor={-1} 
+            polygonOffsetUnits={-1}
+          />
+        </Box>
+        <Box args={[0.012, 0.032, 0.008]} position={[0, 0.017, 0.053]}>
+          <meshStandardMaterial 
+            color="#18181b" 
+            roughness={0.35} 
+            metalness={0.92} 
+            polygonOffset 
+            polygonOffsetFactor={-1} 
+            polygonOffsetUnits={-1}
+          />
+        </Box>
+      </group>
 
-      {/* Trigger guard frame loop (Reference 1 high-fidelity addition to lock fingers) */}
-      <Box args={[0.012, 0.008, 0.045]} position={[0, -0.01, 0.015]}>
-        <meshStandardMaterial color="#0b0f19" roughness={0.6} />
-      </Box>
-      <Box args={[0.012, 0.032, 0.008]} position={[0, 0.005, 0.035]}>
-        <meshStandardMaterial color="#0b0f19" roughness={0.6} />
-      </Box>
+      {/* 2. SKELETONIZED GOLD TRIGGER */}
+      <group position={[0, 0.017, 0.033]} rotation={[THREE.MathUtils.lerp(Math.PI / 10, -Math.PI / 16, -triggerRot.current), 0, 0]}>
+        <Box args={[0.008, 0.02, 0.012]} position={[0, 0, 0]}>
+          <meshStandardMaterial 
+            color="#ca8a04" 
+            roughness={0.12} 
+            metalness={0.98} 
+            polygonOffset 
+            polygonOffsetFactor={-2} 
+            polygonOffsetUnits={-2}
+          />
+        </Box>
+      </group>
 
-      {/* Trigger (Glock steel loop details inside) */}
-      <Box args={[0.008, 0.02, 0.012]} position={[0, 0.005, 0.015]} rotation={[Math.PI / 10, 0, 0]}>
-        <meshStandardMaterial color="#cbd5e0" roughness={0.15} metalness={0.9} />
-      </Box>
+      {/* 3. COCKING HAMMER */}
+      <group position={[0, 0.052, -0.05]} rotation={[THREE.MathUtils.lerp(0.5, -0.5, -hammerRot.current), 0, 0]}>
+        <Cylinder args={[0.007, 0.007, 0.012, 8]} rotation={[0, 0, Math.PI / 2]}>
+          <meshStandardMaterial 
+            color="#d4d4d8" 
+            roughness={0.1} 
+            metalness={0.98} 
+            polygonOffset 
+            polygonOffsetFactor={-2} 
+            polygonOffsetUnits={-2}
+          />
+        </Cylinder>
+      </group>
 
-      {/* Slide */}
-      <Box args={[0.042, 0.045, 0.18]} position={[0, 0.035, 0.015]}>
-        <meshStandardMaterial color="#334155" roughness={0.3} metalness={0.7} />
-      </Box>
-      {/* Barrel cylinder */}
-      <Cylinder args={[0.012, 0.012, 0.03, 8]} position={[0, 0.035, 0.11]} rotation={[Math.PI / 2, 0, 0]}>
-        <meshStandardMaterial color="#0f172a" roughness={0.4} metalness={0.9} />
-      </Cylinder>
-      {/* Laser sight guides */}
+      {/* 4. RECOILING SLIDE ASSEMBLY (Pure Titanium Silver finish slide) */}
+      <group position={[0, 0.047, 0.033 + slideZ.current]}>
+        <Box args={[0.042, 0.045, 0.18]} position={[0, 0, 0]}>
+          <meshStandardMaterial 
+            color="#cbd5e1" 
+            roughness={0.15} 
+            metalness={0.98} 
+            polygonOffset 
+            polygonOffsetFactor={-1} 
+            polygonOffsetUnits={-1}
+          />
+        </Box>
+        
+        {/* Rear slide serrations panels */}
+        {[-0.04, -0.05, -0.06].map((offsetZ, i) => (
+          <group key={i}>
+            <Box args={[0.001, 0.03, 0.003]} position={[-0.0215, 0, offsetZ]}>
+              <meshStandardMaterial color="#27272a" roughness={0.4} metalness={0.8} />
+            </Box>
+            <Box args={[0.001, 0.03, 0.003]} position={[0.0215, 0, offsetZ]}>
+              <meshStandardMaterial color="#27272a" roughness={0.4} metalness={0.8} />
+            </Box>
+          </group>
+        ))}
+
+        {/* Tactical Fiber-Optic Sights */}
+        <Box args={[0.008, 0.01, 0.012]} position={[0, 0.026, 0.08]}>
+          <meshStandardMaterial color="#18181b" roughness={0.5} metalness={0.9} />
+        </Box>
+        <group position={[0, 0.026, -0.078]}>
+          <Box args={[0.022, 0.008, 0.008]} position={[0, 0, 0]}>
+            <meshStandardMaterial color="#18181b" roughness={0.5} metalness={0.9} />
+          </Box>
+          <Sphere args={[0.002, 6, 6]} position={[-0.007, 0.004, 0.001]}>
+            <meshBasicMaterial color="#22c55e" />
+          </Sphere>
+          <Sphere args={[0.002, 6, 6]} position={[0.007, 0.004, 0.001]}>
+            <meshBasicMaterial color="#22c55e" />
+          </Sphere>
+        </group>
+      </group>
+
+      {/* 5. HEAVY POLISHED STEEL INNER BARREL */}
+      <group position={[0, 0.047, 0.128]}>
+        <Cylinder args={[0.014, 0.014, 0.03, 12]} rotation={[Math.PI / 2, 0, 0]}>
+          <meshStandardMaterial 
+            color="#71717a" 
+            roughness={0.08} 
+            metalness={0.98} 
+            polygonOffset 
+            polygonOffsetFactor={-1.2} 
+            polygonOffsetUnits={-1.2}
+          />
+        </Cylinder>
+        <Cylinder args={[0.008, 0.008, 0.002, 8]} position={[0, 0.001, 0.015]} rotation={[Math.PI / 2, 0, 0]}>
+          <meshBasicMaterial color="#000000" />
+        </Cylinder>
+      </group>
+
+      {/* 6. GOLD SHELL PARTICLE FLYOUT */}
+      {shellActive.current && (
+        <group position={shellPos.current} rotation={[shellRot.current.x, shellRot.current.y, shellRot.current.z]}>
+          <Cylinder args={[0.006, 0.006, 0.02, 8]} rotation={[Math.PI / 2, 0, 0]}>
+            <meshStandardMaterial 
+              color="#eab308" 
+              metalness={0.96} 
+              roughness={0.12} 
+            />
+          </Cylinder>
+        </group>
+      )}
+
+      {/* 7. LASER GUIDE LINE */}
       <mesh position={[0, 0.015, 0.9]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.004, 0.004, 1.6]} />
         <meshBasicMaterial color="#ef4444" transparent opacity={0.65} />
       </mesh>
 
-      {/* Gun muzzle fire sparks */}
+      {/* 8. GUN FIRE FLASH SPARKS */}
       {flashActive && (
         <mesh position={[0, 0.035, 0.18]} rotation={[0, 0, Math.random() * Math.PI]}>
           <planeGeometry args={[0.45, 0.45]} />
@@ -436,7 +754,7 @@ const HandgunAttachment = ({
         </mesh>
       )}
 
-      {/* Gun Bullet tracers */}
+      {/* 9. BULLET TRACER PATH */}
       {tracerActive && (
         <mesh position={[0, 0.03, 10]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.015, 0.015, 20]} />
@@ -502,8 +820,8 @@ export const Player = React.memo(({
   const cameraShakeVel = useRef(0);
 
   // Elastic animation spring trackers for smooth weight & landing dynamics (Initialized to relaxed standing neutral pose to prevent startup snap)
-  const handLeftPosActual = useRef(new THREE.Vector3(-0.46, 0.85, 0.05));
-  const handRightPosActual = useRef(new THREE.Vector3(0.46, 0.85, 0.05));
+  const handLeftPosActual = useRef(new THREE.Vector3(-0.46, 0.58, 0.05));
+  const handRightPosActual = useRef(new THREE.Vector3(0.46, 0.58, 0.05));
   const handLeftRotActual = useRef(new THREE.Vector3(0, -1.2 + Math.PI, Math.PI - 0.25));
   const handRightRotActual = useRef(new THREE.Vector3(0, 1.2 - Math.PI, -Math.PI + 0.25));
 
@@ -557,7 +875,7 @@ export const Player = React.memo(({
           }, '<')
           .to(targetPivotRef.position, {
             x: -0.42 * sideSign, // Swings clean across torso
-            y: 0.85,
+            y: 0.58,
             z: 0.88,            // Explodes forward
             duration: 0.09,
             ease: 'power3.inOut'
@@ -570,7 +888,7 @@ export const Player = React.memo(({
           }, '<')
           .to(targetPivotRef.position, {
             x: slapLeft ? -0.46 : 0.46,
-            y: 0.85,
+            y: 0.58,
             z: 0.05,
             duration: 0.16,
             ease: 'power2.out',
@@ -657,29 +975,39 @@ export const Player = React.memo(({
         gsap.killTweensOf(targetPivotRef.rotation);
 
         const sideSign = shootLeft ? -1 : 1;
+        const targetRestX = shootLeft ? -0.45 : 0.45;
+        
+        // --- HAND/GUN ALIGNMENT FIX (REC_ANIMATION) ---
+        // Target Rest Euler is [Math.PI/2, isLeft ? Math.PI/2 : -Math.PI/2, 0] (Thumbs pointing skyward, gun handles vertical, pointing forward)
+        const targetRestRotX = Math.PI / 2;
+        const targetRestRotY = shootLeft ? Math.PI / 2 : -Math.PI / 2;
+        const targetRestRotZ = 0;
+
         gsap.timeline()
           .to(targetPivotRef.position, {
-            x: 0.42 * sideSign,
-            y: 1.05,
-            z: 0.12,
+            x: (targetRestX - 0.03 * sideSign),
+            y: 1.02,
+            z: 0.32,
             duration: 0.04,
             ease: 'circ.out'
           })
           .to(targetPivotRef.rotation, {
-            x: -Math.PI / 4,
+            x: targetRestRotX - 0.15, // Reduced recoil pitch to keep thumb pointing skyward
+            y: targetRestRotY,
+            z: targetRestRotZ,
             duration: 0.04
           }, '<')
           .to(targetPivotRef.position, {
-            x: 0.45 * sideSign,
-            y: 0.8,
-            z: 0.45,
+            x: targetRestX,
+            y: 0.82,
+            z: 0.46,
             duration: 0.18,
             ease: 'power2.out'
           })
           .to(targetPivotRef.rotation, {
-            x: 0,
-            y: 0,
-            z: -Math.PI / 12 * sideSign,
+            x: targetRestRotX + 0.02,
+            y: targetRestRotY,
+            z: targetRestRotZ,
             duration: 0.18
           }, '<');
       }
@@ -753,12 +1081,13 @@ export const Player = React.memo(({
     if (leftHandPivotRef.current && rightHandPivotRef.current) {
         // Dynamic game layout coordinates based on equipped weapons
         if (currentWeapon === 'handgun') {
-          // Tactical dual-guns hold: chest height, gorgeous canted forward angle with micro sways
-          targetLPos.set(-0.45, 0.8 + breath + smoothSwingY.current + clampedLagY, 0.46 - smoothSwingZ.current * 0.4);
-          targetLRot.set(pitchL * 0.2 + 0.05, 0.12, Math.PI / 6 + Math.sin(time * 0.8) * 0.012);
-
-          targetRPos.set(0.45, 0.8 + breath + smoothSwingY.current + clampedLagY, 0.46 + smoothSwingZ.current * 0.4);
-          targetRRot.set(-pitchL * 0.2 + 0.05, -0.12, -Math.PI / 6 - Math.sin(time * 0.8) * 0.012);
+          // Tactical dual-guns hold: hands rotated so thumbs point "up" to the sky, guns point forward, handles vertical.
+          // Corrected to [Math.PI / 2, Math.PI / 2, 0] / [Math.PI / 2, -Math.PI / 2, 0] to keep hands upright and thumbs to sky
+          targetLPos.set(-0.45, 0.82 + breath + smoothSwingY.current + clampedLagY, 0.46 - smoothSwingZ.current * 0.4);
+          targetLRot.set(Math.PI / 2 + pitchL * 0.2, Math.PI / 2, 0);
+          
+          targetRPos.set(0.45, 0.82 + breath + smoothSwingY.current + clampedLagY, 0.46 + smoothSwingZ.current * 0.4);
+          targetRRot.set(Math.PI / 2 - pitchL * 0.2, -Math.PI / 2, 0);
         } else if (currentWeapon === 'knife') {
           // Hunter stance: dual blades canted forward ready to slash
           targetLPos.set(-0.48, 0.82 + breath + smoothSwingY.current + clampedLagY, 0.42 - smoothSwingZ.current * 0.65);
@@ -770,7 +1099,7 @@ export const Player = React.memo(({
           // --- Slap ready high-stature hands, rotated horizontally 180 degrees ---
           targetLPos.set(
             -0.46, 
-            0.85 + breath * 0.2 + smoothSwingY.current * 1.5 + clampedLagY, 
+            0.58 + breath * 0.2 + smoothSwingY.current * 1.5 + clampedLagY, 
             0.05 - smoothSwingZ.current * 0.95
           );
           targetLRot.set(
@@ -781,7 +1110,7 @@ export const Player = React.memo(({
 
           targetRPos.set(
             0.46, 
-            0.85 + breath * 0.2 + smoothSwingY.current * 1.5 + clampedLagY, 
+            0.58 + breath * 0.2 + smoothSwingY.current * 1.5 + clampedLagY, 
             0.05 + smoothSwingZ.current * 0.95
           );
           targetRRot.set(
@@ -972,6 +1301,7 @@ export const Player = React.memo(({
             scale={1.25} 
             position={[0, 0, 0]} 
             gripType={getGripType(true)} 
+            isShooting={leftFlashActive}
           >
             {/* Always keep mounted for seamless smooth slide of weapons on draw/grab */}
             <KnifeAttachment isLeft={true} active={currentWeapon === 'knife'} />
@@ -1002,6 +1332,7 @@ export const Player = React.memo(({
             scale={1.25} 
             position={[0, 0, 0]} 
             gripType={getGripType(false)} 
+            isShooting={rightFlashActive}
           >
             {/* Always keep mounted for seamless smooth slide of weapons on draw/grab */}
             <KnifeAttachment isLeft={false} active={currentWeapon === 'knife'} />

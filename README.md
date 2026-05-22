@@ -115,7 +115,7 @@ Imagine you're building with LEGOs. This project gives you a super organized box
 ### Summary
 - **Weapon Selector Wheel**: Added a GTA 5 inspired slow-motion radial weapon selection overlay (Fist, Knife, and Handgun).
 - **Player I-Pose Stance**: Incorporated a rigid structural I-pose toggle that freezes character velocity and locks arms parallel to the body.
-- **3D Visual Accessories**: Fabricated detailed, procedural 3D metallic knife blade models and tactical laser handguns that orient in hand coordinates.
+- **3D Visual Accessories**: Fabricated detailed, procedural 3D metallic knife blade models (featuring a custom, unified single-geometry design with a clean, tapered sharp tip to eliminate overlapping seams) and tactical laser handguns that orient in hand coordinates.
 - **Dynamic Feedback Effects**: Designed screen-shaking camera recoil, yellow muzzle flashes, torus slice trails, and procedural synth audio feedback using Web Audio API.
 
 ### Architecture (IPO model)
@@ -191,3 +191,34 @@ Imagine you're building with LEGOs. This project gives you a super organized box
 - **Puffy Cartoon Glob Hands**: Redesigned the human-like wrists into thick, adorable, puffy cartoon glove-style "glob hands". Built from highly rounded, thick bubble capsules and spheres, these glove models resemble organic cartoon marshmallow blobs.
 - **Flawless Weapon-Glove Coupling**: Thickened wood knife handles, handgun slides, and gun grips to match the chubby glob hands. Shifted drawing and knuckle offsets closer to palm centers to ensure weapons lock tightly inside the puffy, curling glove fingers with zero gaps or translation lag.
 - **Two-Stage High-Impact Slap Synth**: Engineered a procedural audio synthesizer for slap skin cracks. Combines a high-frequency band-swept triangle wave (for flesh strike tone) with high-pass filtered white noise transients to deliver a crisp, bone-chilling impact on hit.
+
+---
+
+## 💅 Session 9 Update: Streamlined UI, Neutral Tint & Precision Glove Grabs
+
+### Summary
+- **Horizontal 180° Rotate & Elevate**: Rotated default slap hands 180° horizontally (reversing palms/knuckles) to face the player/camera organically. Adjusted default elevation target heights from `0.85` down to a perfectly balanced waist/mid-torso level at `0.58`.
+- **Removed Move & I-Pose Selectors**: Cleaned up unnecessary mechanics by completely stripping the `MOVE` / `I-POSE` toggles and joint lock mechanisms from inputs and the state engines.
+- **Snug Weapon Handles**: Finely shifted gun grips and dagger draw-slide coordinate offsets (Y and Z anchors) so puffy cartoon glove fingers firmly clasp handles with zero collision overlap or loose floating.
+- **Ultra-Clean Frosted Glass Theme**: Redesigned overlay panels to use solid slate backgrounds wrapped in elegant `10px` high-contrast frosted backdrop blurs, clean border definitions, and premium neutral indicators.
+
+---
+
+## 🔫 Session 10 Update: Real-Life Gun Handle Grips & 3D Recoiling Metal Handguns
+
+### Summary
+- **Skeletal Rerig to "Guns Handle Mode"**: Redesigned the 5-finger skeleton's `'pistol'` stance to feature a realistic gun grip. The thumb points vertically upwards "to the sky", the middle/ring/pinky fingers curl tight around the handle, and the index trigger-finger uncurls slightly to rest elegantly inside the trigger area, physically squeezing and pulling the trigger in real-time when firing.
+- **Titanium-Gold 3D Handgun Models**: Engineered heavy metallic handguns blending polished chrome silver slides (`metalness={0.98}`, `roughness={0.15}`) with sleek gold-plated core grip panels (`metalness={0.96}`, `roughness={0.18}`) and dark charcoal carbo-steel frame loops.
+- **Blowback Recoil & Mechanical Actions**: Implemented real-time dynamic mechanical weapon parts. When fired, the top slide physically blows back Z-axis recoiling, the skeletonized trigger pulls backward, and the rear cocking hammer cocks and snaps.
+- **Live Golden Casing Ejections**: Added continuous 3D brass shell casing particles that eject laterally out of the gun's top-right exhaust port, spinning rapidly and falling with realistic gravity physics.
+- **Optical Sights**: Added glowing green rear fiber-optic dots and front post sights targeting vector alignments.
+
+---
+
+## 🔫 Session 11 Update: Forward Hand & Gun Pointing Perfected
+
+### Summary
+- **Upright Hands & Vertical Gun Handle Alignment**: Resolved upside-down hands and sideways tilted gun handle positions. Programmed parent hand orientations to a precise, upright combat posture `[Math.PI / 2, Math.PI / 2, 0]` (Left Hand) and `[Math.PI / 2, -Math.PI / 2, 0]` (Right Hand). This keeps the thumbs pointing 100% vertically to the sky and fingers straight forward.
+- **Perfect Forward-Pointing Gun Alignments**: Programmed the local handgun attachments using custom rotation order `'XYZ'` and values `[-Math.PI / 2, isLeft ? -Math.PI / 2 : Math.PI / 2, 0]`—the exact mathematical inverse of the wrist rotations. This cancels forearm twists perfectly, rendering the gun barrel pointing perfectly forward (+Z Axis) and the gun's handle vertically straight down to the ground.
+- **Accurate Shoot Animation Recoil Reset**: Aligned the GSAP shoot recoil timeline so that after weapon firing, the hand resets cleanly to the correct forward-pointing rotations instead of resetting to a sideways alignment.
+
