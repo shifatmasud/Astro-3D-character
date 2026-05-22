@@ -18,7 +18,7 @@ import {
   Stars
 } from '@react-three/drei';
 import * as THREE from 'three';
-import { Character } from './Character';
+import { Player } from './Player';
 import { GameControls } from './Controls';
 import gsap from 'gsap';
 
@@ -245,6 +245,15 @@ export const Playground = React.memo(() => {
   const mvY = useMotionValue(0);
   const mvJump = useMotionValue(0);
 
+   // Selector states
+  const [currentWeapon, setCurrentWeapon] = useState<'slap' | 'knife' | 'handgun'>('slap');
+  const [weaponWheelOpen, setWeaponWheelOpen] = useState(false);
+  const [attackTrigger, setAttackTrigger] = useState(0);
+
+  const handleAttack = useCallback(() => {
+    setAttackTrigger(prev => prev + 1);
+  }, []);
+
   return (
     <div style={{ 
       width: '100vw', 
@@ -294,11 +303,19 @@ export const Playground = React.memo(() => {
           <Clouds />
         </group>
 
-        {/* Character */}
-        <Character mvX={mvX} mvY={mvY} mvJump={mvJump} />
+        {/* Player */}
+        <Player 
+          mvX={mvX} 
+          mvY={mvY} 
+          mvJump={mvJump} 
+          currentWeapon={currentWeapon} 
+          attackTrigger={attackTrigger}
+          weaponWheelOpen={weaponWheelOpen}
+        />
         
         {/* 3D Controls */}
         <OrbitControls 
+          enabled={!weaponWheelOpen}
           enableDamping 
           dampingFactor={0.05} 
           rotateSpeed={0.5}
@@ -311,7 +328,16 @@ export const Playground = React.memo(() => {
       </Canvas>
 
       {/* Game UI & Input Logic */}
-      <GameControls mvX={mvX} mvY={mvY} mvJump={mvJump} />
+      <GameControls 
+        mvX={mvX} 
+        mvY={mvY} 
+        mvJump={mvJump} 
+        currentWeapon={currentWeapon}
+        setCurrentWeapon={setCurrentWeapon}
+        weaponWheelOpen={weaponWheelOpen}
+        setWeaponWheelOpen={setWeaponWheelOpen}
+        onAttack={handleAttack}
+      />
     </div>
   );
 });
