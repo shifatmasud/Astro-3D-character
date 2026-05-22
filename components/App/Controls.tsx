@@ -12,6 +12,12 @@ interface ControlsProps {
   weaponWheelOpen: boolean;
   setWeaponWheelOpen: (open: boolean) => void;
   onAttack: () => void;
+  handRotation: number;
+  setHandRotation: (rot: number) => void;
+  handRotationX: number;
+  setHandRotationX: (rot: number) => void;
+  handRotationY: number;
+  setHandRotationY: (rot: number) => void;
 }
 
 export const GameControls = React.memo(({ 
@@ -22,7 +28,13 @@ export const GameControls = React.memo(({
   setCurrentWeapon,
   weaponWheelOpen,
   setWeaponWheelOpen,
-  onAttack
+  onAttack,
+  handRotation,
+  setHandRotation,
+  handRotationX,
+  setHandRotationX,
+  handRotationY,
+  setHandRotationY
 }: ControlsProps) => {
   const joystickRef = useRef<HTMLDivElement>(null);
   const joystickActive = useRef(false);
@@ -266,6 +278,102 @@ export const GameControls = React.memo(({
             }}>
               AMMO: {currentWeapon === 'handgun' ? '∞' : 'N/A'}
             </div>
+          </div>
+        </div>
+
+        {/* Hand Rotation Sliders UI */}
+        <div style={{
+          background: 'rgba(15, 23, 42, 0.8)',
+          backdropFilter: 'blur(10px)',
+          border: '1.5px solid rgba(255, 255, 255, 0.15)',
+          padding: '12px 18px',
+          borderRadius: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          width: '200px'
+        }}>
+          <div style={{
+            fontFamily: 'Bebas Neue',
+            fontSize: '14px',
+            letterSpacing: '0.5px',
+            color: '#fff',
+            display: 'flex',
+            justifyContent: 'center',
+            borderBottom: '1px solid rgba(255,255,255,0.1)',
+            paddingBottom: '4px'
+          }}>
+            LOCAL AXIS ROTATION
+          </div>
+
+          {/* X Axis */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{
+              fontFamily: 'JetBrains Mono',
+              fontSize: '10px',
+              color: 'rgba(255,255,255,0.7)',
+              display: 'flex',
+              justifyContent: 'space-between'
+            }}>
+              <span>X AXIS</span>
+              <span>{Math.round(handRotationX * 360)}°</span>
+            </div>
+            <input 
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={handRotationX}
+              onChange={(e) => setHandRotationX(parseFloat(e.target.value))}
+              style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer', height: '12px' }}
+            />
+          </div>
+
+          {/* Y Axis */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{
+              fontFamily: 'JetBrains Mono',
+              fontSize: '10px',
+              color: 'rgba(255,255,255,0.7)',
+              display: 'flex',
+              justifyContent: 'space-between'
+            }}>
+              <span>Y AXIS</span>
+              <span>{Math.round(handRotationY * 360)}°</span>
+            </div>
+            <input 
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={handRotationY}
+              onChange={(e) => setHandRotationY(parseFloat(e.target.value))}
+              style={{ width: '100%', accentColor: '#22c55e', cursor: 'pointer', height: '12px' }}
+            />
+          </div>
+
+          {/* Z Axis (Original Hand Rotation) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{
+              fontFamily: 'JetBrains Mono',
+              fontSize: '10px',
+              color: 'rgba(255,255,255,0.7)',
+              display: 'flex',
+              justifyContent: 'space-between'
+            }}>
+              <span>Z AXIS</span>
+              <span>{Math.round(handRotation * 360)}°</span>
+            </div>
+            <input 
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={handRotation}
+              onChange={(e) => setHandRotation(parseFloat(e.target.value))}
+              style={{ width: '100%', accentColor: '#ffffff', cursor: 'pointer', height: '12px' }}
+            />
           </div>
         </div>
 

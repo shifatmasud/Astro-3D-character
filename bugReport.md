@@ -35,7 +35,15 @@ Tracking all issues, from critical bugs to minor suggestions.
 -   **[2026-05-22] (Resolved)**: Fixed "curled" thumb in gunmode. Upgraded the `FloatingHand` skeletal logic to support dynamic X-axis rotation per finger, allowing the thumb to straighten and point vertically upwards (world-up) independently of the hand's forward-pointing pitch.
 -   **[2026-05-22] (Resolved)**: Resolved robotic snapping on gun/knife draw and grab. Designed continuous placement mounts with smooth dynamic spring slide-up and scaling on draw transition, added custom trigger guard loop frames with metallic triggers on the Glocks, and aligned tactical knives vertically along the hand's Y-axis to replicate real grips perfectly.
 -   **[2026-05-22] (Resolved)**: Restructured character visor to use an exact mathematical layout offset in Z-space, eradicating positioning sink and surface depth-fighting/flickering against the body capsule.
--   **[2026-02-27]**: Pre-existing TypeScript lint errors in `MetaPrototype.tsx`, `StyleGuidePanel.tsx`, `TabbedPanel.tsx`, and `Stage.tsx`. These appear to be related to type mismatches in window state and style guide data structures.
+
+## Open (To Be Fixed)
+
+-   **[2026-05-22] (Coordinate Logic)**: Hand base orientation uses a 180° Z-rotation (`Math.PI`) which inverts the local coordinate system, making `+y` move "down" and `-y` move "up". This inversion is leaking into attack timelines and nested child weapon attachments, causing spatial confusion and maintenance difficulty.
+-   **[2026-05-22] (Misalignment)**: Handgun attachment and Knife attachment use slightly different mounting offsets and "counter-twist" logic (Euler orders like `YXZ` vs `XYZ`), leading to micro-misalignments where weapons don't sit perfectly in the center of the palm or align with the index finger's aim-line.
+-   **[2026-05-22] (Orientation Bug)**: The thumb segment inside the `FloatingHand` component rotates relative to a parent that is often rotated for "forward pointing" weapons. This results in the thumb occasionally pointing inwards or at awkward angles during high-recoil animations.
+-   **[2026-05-22] (Attack Mechanics)**: Slap animations are calculated using relative Y-offsets to "raise" the hand, but because of the base 180° rotation, the math is counter-intuitive. Rapid switches between weapon types during mid-attack GSAP timelines cause unnatural "snaps" to neutral positions.
+
+## Pre-existing Issues
 
 ## Suggestion (Improvements)
 

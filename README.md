@@ -20,6 +20,11 @@ This is a starter project for building modern, theme-aware React applications. I
 | **Inputs** | Range Sliders, Color Pickers, Toggles, Selects, TextAreas |
 | **Visuals** | Confetti System, Blueprint Overlays, Token Badges, Glassmorphism |
 
+## Current Project Status
+-   **[STABLE]** Locomotion, Physics Collisions, Sound Synthesis.
+-   **[DEGRADED]** Hand Orientation & Attaching Mechanics (Coordinate inversion issues identified).
+-   **[OPEN]** Weapon alignment refactor, Coordinate system normalization.
+
 ## What's Inside? (ELI10 Version)
 
 Imagine you're building with LEGOs. This project gives you a super organized box of special LEGO pieces to build an amazing app.

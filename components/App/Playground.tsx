@@ -292,7 +292,20 @@ export const Playground = React.memo(() => {
    // Selector states
   const [currentWeapon, setCurrentWeapon] = useState<'slap' | 'knife' | 'handgun'>('slap');
   const [weaponWheelOpen, setWeaponWheelOpen] = useState(false);
+  const [weaponRotation, setWeaponRotation] = useState(0);
+  const [weaponRotationX, setWeaponRotationX] = useState(0);
+  const [weaponRotationY, setWeaponRotationY] = useState(0);
   const [attackTrigger, setAttackTrigger] = useState(0);
+
+  const mvHandRotation = useMotionValue(0);
+  const mvHandRotationX = useMotionValue(0);
+  const mvHandRotationY = useMotionValue(0);
+
+  useEffect(() => {
+    mvHandRotation.set(weaponRotation);
+    mvHandRotationX.set(weaponRotationX);
+    mvHandRotationY.set(weaponRotationY);
+  }, [weaponRotation, weaponRotationX, weaponRotationY, mvHandRotation, mvHandRotationX, mvHandRotationY]);
 
   const handleAttack = useCallback(() => {
     setAttackTrigger(prev => prev + 1);
@@ -353,6 +366,9 @@ export const Playground = React.memo(() => {
             mvX={mvX} 
             mvY={mvY} 
             mvJump={mvJump} 
+            mvHandRotation={mvHandRotation}
+            mvHandRotationX={mvHandRotationX}
+            mvHandRotationY={mvHandRotationY}
             currentWeapon={currentWeapon} 
             attackTrigger={attackTrigger}
             weaponWheelOpen={weaponWheelOpen}
@@ -383,6 +399,12 @@ export const Playground = React.memo(() => {
         weaponWheelOpen={weaponWheelOpen}
         setWeaponWheelOpen={setWeaponWheelOpen}
         onAttack={handleAttack}
+        handRotation={weaponRotation}
+        setHandRotation={setWeaponRotation}
+        handRotationX={weaponRotationX}
+        setHandRotationX={setWeaponRotationX}
+        handRotationY={weaponRotationY}
+        setHandRotationY={setWeaponRotationY}
       />
     </div>
   );

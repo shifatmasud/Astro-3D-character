@@ -17,6 +17,9 @@ export interface PlayerProps {
   mvX: MotionValue<number>;
   mvY: MotionValue<number>;
   mvJump: MotionValue<number>;
+  mvHandRotation?: MotionValue<number>; // Slider input (0 to 1)
+  mvHandRotationX?: MotionValue<number>;
+  mvHandRotationY?: MotionValue<number>;
   onColorChange?: (color: string) => void;
   bodyColor?: string;
   visorColor?: string;
@@ -79,6 +82,9 @@ interface FloatingHandProps {
   position?: [number, number, number];
   gripType: 'open' | 'fist' | 'pistol' | 'knife';
   isShooting?: boolean;
+  handRotation?: number; // 0 to 1 normalized rotation (0 to 2PI)
+  handRotationX?: number;
+  handRotationY?: number;
   children?: React.ReactNode;
 }
 
@@ -89,6 +95,9 @@ const FloatingHand = ({
   position = [0, 0, 0],
   gripType,
   isShooting = false,
+  handRotation = 0,
+  handRotationX = 0,
+  handRotationY = 0,
   children
 }: FloatingHandProps) => {
   const handRef = useRef<THREE.Group>(null);
@@ -269,75 +278,78 @@ const FloatingHand = ({
   return (
     <group ref={handRef} position={position} scale={scale}>
       <group ref={wristRef}>
-        {/* Palm as a cute thick globular bubble */}
-        <RoundedBox args={[0.16, 0.16, 0.08]} radius={0.045} smoothness={5} position={[0, 0.04, 0]}>
-          <meshStandardMaterial 
-            color={color} 
-            roughness={0.35} 
-            metalness={0.15} 
-          />
-        </RoundedBox>
-
-        {/* Nested attached weapons */}
+        {/* WEAPONS: Stay in the clean wrist coordinate system (Up is Up) */}
         {children}
 
-        {/* 1. Thumb */}
-        <group 
-          ref={thumbBaseRef} 
-          position={[isLeft ? 0.075 : -0.075, 0.015, 0.005]} 
-          rotation={[0.1, 0.1 * sideSign, -Math.PI / 4 * sideSign]}
-        >
-          <ChubbyPhalanx length={0.045} radius={0.025} color={color} />
-          <group ref={thumbTipRef} position={[0, 0.045, 0]} rotation={[0, 0, -0.1 * sideSign]}>
-            <ChubbyPhalanx length={0.035} radius={0.023} color={color} />
-          </group>
-        </group>
+        {/* HAND MESHES: Rotated per user preference (Default 180 flip + Sliders) */}
+        <group rotation={[handRotationX * Math.PI * 2, handRotationY * Math.PI * 2, (Math.PI) + (handRotation * Math.PI * 2)]}>
+          {/* Palm as a cute thick globular bubble */}
+          <RoundedBox args={[0.16, 0.16, 0.08]} radius={0.045} smoothness={5} position={[0, 0.04, 0]}>
+            <meshStandardMaterial 
+              color={color} 
+              roughness={0.35} 
+              metalness={0.15} 
+            />
+          </RoundedBox>
 
-        {/* 2. Index */}
-        <group 
-          ref={indexBaseRef} 
-          position={[isLeft ? 0.055 : -0.055, 0.095, 0.0]} 
-          rotation={[0, 0, 0.12 * sideSign]}
-        >
-          <ChubbyPhalanx length={0.045} radius={0.023} color={color} />
-          <group ref={indexTipRef} position={[0, 0.045, 0]} rotation={[0.2, 0, 0]}>
-            <ChubbyPhalanx length={0.035} radius={0.021} color={color} />
+          {/* 1. Thumb */}
+          <group 
+            ref={thumbBaseRef} 
+            position={[isLeft ? 0.075 : -0.075, 0.015, 0.005]} 
+            rotation={[0.1, 0.1 * sideSign, -Math.PI / 4 * sideSign]}
+          >
+            <ChubbyPhalanx length={0.045} radius={0.025} color={color} />
+            <group ref={thumbTipRef} position={[0, 0.045, 0]} rotation={[0, 0, -0.1 * sideSign]}>
+              <ChubbyPhalanx length={0.035} radius={0.023} color={color} />
+            </group>
           </group>
-        </group>
 
-        {/* 3. Middle */}
-        <group 
-          ref={middleBaseRef} 
-          position={[isLeft ? 0.018 : -0.018, 0.105, 0.0]} 
-          rotation={[0, 0, 0]}
-        >
-          <ChubbyPhalanx length={0.055} radius={0.024} color={color} />
-          <group ref={middleTipRef} position={[0, 0.055, 0]} rotation={[0.2, 0, 0]}>
-            <ChubbyPhalanx length={0.04} radius={0.022} color={color} />
+          {/* 2. Index */}
+          <group 
+            ref={indexBaseRef} 
+            position={[isLeft ? 0.055 : -0.055, 0.095, 0.0]} 
+            rotation={[0, 0, 0.12 * sideSign]}
+          >
+            <ChubbyPhalanx length={0.045} radius={0.023} color={color} />
+            <group ref={indexTipRef} position={[0, 0.045, 0]} rotation={[0.2, 0, 0]}>
+              <ChubbyPhalanx length={0.035} radius={0.021} color={color} />
+            </group>
           </group>
-        </group>
 
-        {/* 4. Ring */}
-        <group 
-          ref={ringBaseRef} 
-          position={[isLeft ? -0.018 : 0.018, 0.10, 0.0]} 
-          rotation={[0, 0, -0.08 * sideSign]}
-        >
-          <ChubbyPhalanx length={0.05} radius={0.023} color={color} />
-          <group ref={ringTipRef} position={[0, 0.05, 0]} rotation={[0.2, 0, 0]}>
-            <ChubbyPhalanx length={0.038} radius={0.021} color={color} />
+          {/* 3. Middle */}
+          <group 
+            ref={middleBaseRef} 
+            position={[isLeft ? 0.018 : -0.018, 0.105, 0.0]} 
+            rotation={[0, 0, 0]}
+          >
+            <ChubbyPhalanx length={0.055} radius={0.024} color={color} />
+            <group ref={middleTipRef} position={[0, 0.055, 0]} rotation={[0.2, 0, 0]}>
+              <ChubbyPhalanx length={0.04} radius={0.022} color={color} />
+            </group>
           </group>
-        </group>
 
-        {/* 5. Pinky */}
-        <group 
-          ref={pinkyBaseRef} 
-          position={[isLeft ? -0.055 : 0.055, 0.08, 0.0]} 
-          rotation={[0, 0, -0.2 * sideSign]}
-        >
-          <ChubbyPhalanx length={0.042} radius={0.021} color={color} />
-          <group ref={pinkyTipRef} position={[0, 0.042, 0]} rotation={[0.2, 0, 0]}>
-            <ChubbyPhalanx length={0.032} radius={0.019} color={color} />
+          {/* 4. Ring */}
+          <group 
+            ref={ringBaseRef} 
+            position={[isLeft ? -0.018 : 0.018, 0.10, 0.0]} 
+            rotation={[0, 0, -0.08 * sideSign]}
+          >
+            <ChubbyPhalanx length={0.05} radius={0.023} color={color} />
+            <group ref={ringTipRef} position={[0, 0.05, 0]} rotation={[0.2, 0, 0]}>
+              <ChubbyPhalanx length={0.038} radius={0.021} color={color} />
+            </group>
+          </group>
+
+          {/* 5. Pinky */}
+          <group 
+            ref={pinkyBaseRef} 
+            position={[isLeft ? -0.055 : 0.055, 0.08, 0.0]} 
+            rotation={[0, 0, -0.2 * sideSign]}
+          >
+            <ChubbyPhalanx length={0.042} radius={0.021} color={color} />
+            <group ref={pinkyTipRef} position={[0, 0.042, 0]} rotation={[0.2, 0, 0]}>
+              <ChubbyPhalanx length={0.032} radius={0.019} color={color} />
+            </group>
           </group>
         </group>
       </group>
@@ -358,14 +370,15 @@ const KnifeAttachment = ({ isLeft, active }: { isLeft: boolean; active: boolean 
       // Scale-in to eliminate snaps on grab
       groupRef.current.scale.setScalar(transitionVal.current);
       
-      // Animate position: slide up from palm core bottom (Y = -0.06) up to slotting knuckle position (Y = 0.045)
-      groupRef.current.position.y = THREE.MathUtils.lerp(-0.06, 0.04, transitionVal.current);
-      groupRef.current.position.z = THREE.MathUtils.lerp(-0.02, 0.035, transitionVal.current);
+      // Animate position: slide up from palm core bottom and slot into place
+      groupRef.current.position.y = THREE.MathUtils.lerp(-0.06, 0.045, transitionVal.current);
+      groupRef.current.position.z = THREE.MathUtils.lerp(0.01, -0.035, transitionVal.current);
       
-      // Animate rotation: twist slightly on draw/grabbing
-      groupRef.current.rotation.x = THREE.MathUtils.lerp(Math.PI / 4, 0.25, transitionVal.current);
-      // Corrected relative rotation for better grip alignment
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(0, isLeft ? -0.1 : 0.1, transitionVal.current);
+      // Standardized knife grip alignment
+      groupRef.current.rotation.order = 'YXZ';
+      groupRef.current.rotation.x = isLeft ? -0.25 : 0.25; 
+      groupRef.current.rotation.y = 0;
+      groupRef.current.rotation.z = isLeft ? -Math.PI / 2 : Math.PI / 2;
     }
   });
 
@@ -518,60 +531,58 @@ const HandgunAttachment = ({
     const target = active ? 1 : 0;
     transitionVal.current = THREE.MathUtils.lerp(transitionVal.current, target, 1 - Math.exp(-15 * delta));
     
-    if (groupRef.current) {
-      // Scale-in to eliminate snaps on grab
-      groupRef.current.scale.setScalar(transitionVal.current);
-      
-      // Animate position: slide up from palm bottom Y = -0.05 to sliding slot Y = 0.045, and Z = 0.025
-      groupRef.current.position.y = THREE.MathUtils.lerp(-0.05, 0.045, transitionVal.current); // Slightly raised for finger alignment
-      groupRef.current.position.z = THREE.MathUtils.lerp(-0.01, 0.025, transitionVal.current);
-      
-      // CHANGE: Corrected groupRef.current.rotation.order to 'YXZ' and restored -Math.PI / 2 on X.
-      // EXPLANATION: Corrected rotation order from 'XYZ' to 'YXZ' so that the custom -Math.PI / 2 X-tilt and Y counter-twist relative to the upright wrist are computed in the correct sequential Euler space. This perfectly projects the weapon barrels straight forward and points laser sights nicely along the Index finger line without modifying the hands.
-      // HOW TO UNDO: Revert groupRef.current.rotation.order to 'XYZ'.
-      groupRef.current.rotation.order = 'YXZ';
-      groupRef.current.rotation.x = -Math.PI / 2;
-      groupRef.current.rotation.y = isLeft ? -Math.PI / 2 : Math.PI / 2;
-      groupRef.current.rotation.z = 0;
-    }
-
-    // Capture exact frame in which weapon shoots to trigger blowback recoil & shell ejection
-    if (flashActive && !lastFlashActive.current) {
-      slideZ.current = -0.055; // Bolt slide moves back
-      triggerRot.current = -0.32; // Trigger pulls back
-      hammerRot.current = 0.45; // Hammer rotates back
-      
-      // Eject a shiny golden hollow bullet casing out of ejection port
-      shellActive.current = true;
-      shellPos.current.set(isLeft ? -0.012 : 0.012, 0.048, 0.038);
-      shellVel.current.set(
-        (isLeft ? -0.35 : 0.35) + (Math.random() - 0.5) * 0.1,
-        0.52 + Math.random() * 0.15,
-        -0.15 - Math.random() * 0.15
-      );
-      shellRot.current.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-      shellRotVel.current.set(12 + Math.random() * 8, 12 + Math.random() * 8, 12 + Math.random() * 8);
-    }
-    lastFlashActive.current = flashActive;
-
-    // Decay recoil offsets smoothly back to normal
-    slideZ.current = THREE.MathUtils.lerp(slideZ.current, 0, 1 - Math.exp(-18 * delta));
-    triggerRot.current = THREE.MathUtils.lerp(triggerRot.current, 0, 1 - Math.exp(-22 * delta));
-    hammerRot.current = THREE.MathUtils.lerp(hammerRot.current, -0.18, 1 - Math.exp(-6 * delta));
-
-    // Casing falling gravity updates
-    if (shellActive.current) {
-      shellVel.current.y -= 9.8 * delta * 0.65;
-      shellPos.current.addScaledVector(shellVel.current, delta);
-      shellRot.current.addScaledVector(shellRotVel.current, delta);
-      if (shellPos.current.y < -0.35) {
-        shellActive.current = false;
+      if (groupRef.current) {
+        // Scale-in to eliminate snaps on grab
+        groupRef.current.scale.setScalar(transitionVal.current);
+        
+        // Animate position: slide up from palm bottom
+        groupRef.current.position.y = THREE.MathUtils.lerp(-0.05, 0.045, transitionVal.current);
+        groupRef.current.position.z = THREE.MathUtils.lerp(0.01, -0.025, transitionVal.current);
+        
+        // Corrected rotation order to 'YXZ' for perfect forward projection
+        groupRef.current.rotation.order = 'YXZ';
+        groupRef.current.rotation.x = -Math.PI / 2;
+        groupRef.current.rotation.y = isLeft ? -Math.PI / 2 : Math.PI / 2;
+        groupRef.current.rotation.z = 0;
       }
-    }
-  });
-
-  return (
-    <group ref={groupRef} rotation={[-Math.PI / 2, 0, 0]}>
+  
+      // Capture exact frame in which weapon shoots to trigger blowback recoil & shell ejection
+      if (flashActive && !lastFlashActive.current) {
+        slideZ.current = -0.055; // Bolt slide moves back
+        triggerRot.current = -0.32; // Trigger pulls back
+        hammerRot.current = 0.45; // Hammer rotates back
+        
+        // Eject a shiny golden hollow bullet casing out of ejection port
+        shellActive.current = true;
+        shellPos.current.set(isLeft ? -0.012 : 0.012, 0.048, 0.038);
+        shellVel.current.set(
+          (isLeft ? -0.35 : 0.35) + (Math.random() - 0.5) * 0.1,
+          0.52 + Math.random() * 0.15,
+          -0.15 - Math.random() * 0.15
+        );
+        shellRot.current.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        shellRotVel.current.set(12 + Math.random() * 8, 12 + Math.random() * 8, 12 + Math.random() * 8);
+      }
+      lastFlashActive.current = flashActive;
+  
+      // Decay recoil offsets smoothly back to normal
+      slideZ.current = THREE.MathUtils.lerp(slideZ.current, 0, 1 - Math.exp(-18 * delta));
+      triggerRot.current = THREE.MathUtils.lerp(triggerRot.current, 0, 1 - Math.exp(-22 * delta));
+      hammerRot.current = THREE.MathUtils.lerp(hammerRot.current, -0.18, 1 - Math.exp(-6 * delta));
+  
+      // Casing falling gravity updates
+      if (shellActive.current) {
+        shellVel.current.y -= 9.8 * delta * 0.65;
+        shellPos.current.addScaledVector(shellVel.current, delta);
+        shellRot.current.addScaledVector(shellRotVel.current, delta);
+        if (shellPos.current.y < -0.35) {
+          shellActive.current = false;
+        }
+      }
+    });
+  
+    return (
+      <group ref={groupRef} rotation={[-Math.PI / 2, 0, 0]}>
       
       {/* 1. FRAME & CARBO-STEEL GRIP */}
       <group>
@@ -737,6 +748,9 @@ export const Player = React.memo(({
   mvX,
   mvY,
   mvJump,
+  mvHandRotation,
+  mvHandRotationX,
+  mvHandRotationY,
   bodyColor = "#ef4444",
   visorColor = "#7dd3fc",
   position = [0, 0, 0],
@@ -781,14 +795,16 @@ export const Player = React.memo(({
   const [leftSlashActive, setLeftSlashActive] = useState(false);
   const [rightSlashActive, setRightSlashActive] = useState(false);
   const [isClenched, setIsClenched] = useState<'none' | 'left' | 'right'>('none');
-
+  const [extraRotation, setExtraRotation] = useState(0);
+  const [extraRotationX, setExtraRotationX] = useState(0);
+  const [extraRotationY, setExtraRotationY] = useState(0);
   const cameraShakeVel = useRef(0);
 
   // Elastic animation spring trackers for smooth weight & landing dynamics (Initialized to relaxed standing neutral pose to prevent startup snap)
   const handLeftPosActual = useRef(new THREE.Vector3(-0.46, 0.58, 0.05));
   const handRightPosActual = useRef(new THREE.Vector3(0.46, 0.58, 0.05));
-  const handLeftRotActual = useRef(new THREE.Vector3(0, -1.2 + Math.PI, Math.PI - 0.25));
-  const handRightRotActual = useRef(new THREE.Vector3(0, 1.2 - Math.PI, -Math.PI + 0.25));
+  const handLeftRotActual = useRef(new THREE.Vector3(0, -1.2, 1.1));
+  const handRightRotActual = useRef(new THREE.Vector3(0, 1.2, -1.1));
 
   // Breathing & walk-sway momentum
   const cumulativeTime = useRef(0);
@@ -836,8 +852,8 @@ export const Player = React.memo(({
         activeTimeline.current = gsap.timeline()
           .to(targetOffsetRef.position, {
             x: -0.2 * sideSign, // wind up slightly to the side
-            y: -0.68,           // raise to cheek/face level relative to hand rest (0.58 + 0.68 = 1.26 absolute height in inverted space)
-            z: 0.15,            // pull back slightly (positive Z in inverted local space pulls back towards body)
+            y: 0.68,            // raise to cheek/face level
+            z: 0.15,            // pull back slightly (positive Z moves away in cleaned space)
             duration: 0.10,
             ease: 'power2.out'
           })
@@ -849,15 +865,15 @@ export const Player = React.memo(({
           }, '<')
           .to(targetOffsetRef.position, {
             x: 0.8 * sideSign,  // swishes forceful slap arc clean across the face
-            y: -0.62,           // maintain cheek/jaw contact height
-            z: -0.38,           // slap forward contact (negative Z in inverted local space pushes forward away from body)
+            y: 0.62,            // maintain cheek/jaw contact height
+            z: -0.38,           // slap forward contact (negative Z moves forward)
             duration: 0.08,
             ease: 'power3.out'
           })
           .to(targetOffsetRef.rotation, {
             x: 0.15,
-            y: 1.35 * sideSign, // flat slap impact pitch angle
-            z: -0.8 * sideSign,
+            y: -1.35 * sideSign, // flat slap impact pitch angle
+            z: 0.8 * sideSign,
             duration: 0.08
           }, '<')
           .to(targetOffsetRef.position, {
@@ -907,15 +923,15 @@ export const Player = React.memo(({
         activeTimeline.current = gsap.timeline()
           .to(targetOffsetRef.position, {
             x: -0.15 * sideSign,
-            y: 0.4,             // raise high relative to hands rest position
+            y: 0.4,             // raise high
             z: -0.2,            // pull back
             duration: 0.10,
             ease: 'power2.out'
           })
           .to(targetOffsetRef.rotation, {
-            x: 0.4,
-            y: -0.6 * sideSign,
-            z: 0.1 * sideSign,
+            x: -0.4,
+            y: 0.6 * sideSign,
+            z: -0.1 * sideSign,
             duration: 0.10
           }, '<')
           .to(targetOffsetRef.position, {
@@ -926,9 +942,9 @@ export const Player = React.memo(({
             ease: 'power3.inOut'
           })
           .to(targetOffsetRef.rotation, {
-            x: -0.6,
-            y: 0.8 * sideSign,
-            z: -0.8 * sideSign,
+            x: 0.6,
+            y: -0.8 * sideSign,
+            z: 0.8 * sideSign,
             duration: 0.10
           }, '<')
           .to(targetOffsetRef.position, {
@@ -982,12 +998,12 @@ export const Player = React.memo(({
           .to(targetOffsetRef.position, {
             x: -0.01 * sideSign,
             y: 0.08,             // subtle trigger lift
-            z: -0.12,            // push back (blowback)
+            z: -0.12,            // push back (recoil)
             duration: 0.04,
             ease: 'circ.out'
           })
           .to(targetOffsetRef.rotation, {
-            x: -0.28,            // barrel muzzle flip upward
+            x: 0.28,             // barrel muzzle flip upward
             y: 0,
             z: 0,
             duration: 0.04
@@ -1021,6 +1037,12 @@ export const Player = React.memo(({
     const x = mvX.get();
     const y = mvY.get();
     const jump = mvJump.get() > 0.5;
+    const hRot = mvHandRotation ? mvHandRotation.get() : 0;
+    const hRotX = mvHandRotationX ? mvHandRotationX.get() : 0;
+    const hRotY = mvHandRotationY ? mvHandRotationY.get() : 0;
+    setExtraRotation(hRot);
+    setExtraRotationX(hRotX);
+    setExtraRotationY(hRotY);
     const { camera } = state;
 
     // Get current position & velocity from Rapier rigidbody
@@ -1103,8 +1125,8 @@ export const Player = React.memo(({
           );
           targetLRot.set(
             pitchL * 1.1, 
-            -1.2 + Math.PI + yawL * 0.4, 
-            Math.PI - 0.25 + smoothSwingY.current * 0.15
+            -1.2 + yawL * 0.4, 
+            1.1 + smoothSwingY.current * 0.15
           );
 
           targetRPos.set(
@@ -1114,8 +1136,8 @@ export const Player = React.memo(({
           );
           targetRRot.set(
             -pitchL * 1.1, 
-            1.2 - Math.PI - yawL * 0.4, 
-            -Math.PI + 0.25 - smoothSwingY.current * 0.15
+            1.2 - yawL * 0.4, 
+            -1.1 - smoothSwingY.current * 0.15
           );
         }
 
@@ -1313,6 +1335,9 @@ export const Player = React.memo(({
               position={[0, 0, 0]} 
               gripType={getGripType(true)} 
               isShooting={leftFlashActive}
+              handRotation={extraRotation}
+              handRotationX={extraRotationX}
+              handRotationY={extraRotationY}
             >
               {/* Always keep mounted for seamless smooth slide of weapons on draw/grab */}
               <KnifeAttachment isLeft={true} active={currentWeapon === 'knife'} />
@@ -1346,6 +1371,9 @@ export const Player = React.memo(({
               position={[0, 0, 0]} 
               gripType={getGripType(false)} 
               isShooting={rightFlashActive}
+              handRotation={extraRotation}
+              handRotationX={extraRotationX}
+              handRotationY={extraRotationY}
             >
               {/* Always keep mounted for seamless smooth slide of weapons on draw/grab */}
               <KnifeAttachment isLeft={false} active={currentWeapon === 'knife'} />
