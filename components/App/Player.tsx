@@ -6,7 +6,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MotionValue } from 'framer-motion';
 import { Box, Capsule, Cylinder, RoundedBox, Sphere } from '@react-three/drei';
-import { useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
@@ -109,164 +109,162 @@ const FloatingHand = ({
 
   const sideSign = isLeft ? 1 : -1;
 
-  useGSAP(() => {
-    const handleTick = (t: number) => {
-      if (handRef.current) {
-        // Gentle weightless natural drift
-        handRef.current.position.y = position[1] + Math.sin(t * 1.8) * 0.03;
-        handRef.current.rotation.y = Math.sin(t * 0.8) * 0.03 * sideSign;
-        handRef.current.rotation.x = Math.cos(t * 1.1) * 0.02;
-      }
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
 
-      if (wristRef.current) {
-        const pulse = 1.0 + Math.sin(t * 2.5) * 0.003;
-        wristRef.current.scale.set(pulse, pulse, pulse);
+    if (handRef.current) {
+      // Gentle weightless natural drift
+      handRef.current.position.y = position[1] + Math.sin(t * 1.8) * 0.03;
+      handRef.current.rotation.y = Math.sin(t * 0.8) * 0.03 * sideSign;
+      handRef.current.rotation.x = Math.cos(t * 1.1) * 0.02;
+    }
 
-        // Organic dynamic wrist bone rotation depending on weapon coordinates which breaks robotic alignment
-        let targetWristX = 0;
-        let targetWristY = 0;
-        let targetWristZ = 0;
+    if (wristRef.current) {
+      const pulse = 1.0 + Math.sin(t * 2.5) * 0.003;
+      wristRef.current.scale.set(pulse, pulse, pulse);
 
-        if (gripType === 'pistol') {
-          // High-level shooter wrist angle: slight forward lock & inward roll
-          targetWristX = -0.16;
-          targetWristY = 0.12 * sideSign;
-          targetWristZ = -0.06 * sideSign;
-        } else if (gripType === 'knife') {
-          // Aggressive slasher wrist angle: canted slightly outward for maximum leverage
-          targetWristX = 0.18;
-          targetWristY = -0.08 * sideSign;
-          targetWristZ = 0.12 * sideSign;
-        } else if (gripType === 'fist') {
-          // Guarded combat knuckles: slight inward rotation
-          targetWristX = 0.08;
-          targetWristY = 0.14 * sideSign;
-          targetWristZ = -0.08 * sideSign;
-        }
+      // Organic dynamic wrist bone rotation depending on weapon coordinates which breaks robotic alignment
+      let targetWristX = 0;
+      let targetWristY = 0;
+      let targetWristZ = 0;
 
-        wristRef.current.rotation.x = THREE.MathUtils.lerp(wristRef.current.rotation.x, targetWristX, 0.12);
-        wristRef.current.rotation.y = THREE.MathUtils.lerp(wristRef.current.rotation.y, targetWristY, 0.12);
-        wristRef.current.rotation.z = THREE.MathUtils.lerp(wristRef.current.rotation.z, targetWristZ, 0.12);
-      }
-
-      // Organic cascading glove ripples (Piano finger wave)
-      const waveSpeed = 2.6;
-      const indexBreathe  = Math.sin(t * waveSpeed + 0.0) * 0.06 + 0.08;
-      const middleBreathe = Math.sin(t * waveSpeed + 0.3) * 0.06 + 0.10;
-      const ringBreathe   = Math.sin(t * waveSpeed + 0.6) * 0.06 + 0.09;
-      const pinkyBreathe  = Math.sin(t * waveSpeed + 0.9) * 0.06 + 0.07;
-
-      // Default resting values (Bottom-left/Top-right style cupped hand shapes)
-      let targetThumbX = 0.1;
-      let targetThumbY = (0.16 + Math.sin(t * 1.5) * 0.02) * sideSign;
-      let targetThumbZ = (-Math.PI / 4.6 - indexBreathe * 0.25) * sideSign;
-      let targetIndexX = indexBreathe;
-      let targetMiddleX = middleBreathe;
-      let targetRingX = ringBreathe;
-      let targetPinkyX = pinkyBreathe;
-
-      // Double-joint secondary curling ratios for natural hand outlines
-      let targetThumbTipX = 0.12 + Math.sin(t * 1.5) * 0.02;
-      let targetIndexTipX = indexBreathe * 1.2;
-      let targetMiddleTipX = middleBreathe * 1.25;
-      let targetRingTipX = ringBreathe * 1.2;
-      let targetPinkyTipX = pinkyBreathe * 1.15;
-
-      if (gripType === 'fist') {
-        // Tight clenched fist (Top-left image): base + tips wrap 90+ degrees with high-frequency adrenaline muscle flex/tremor
-        const tremor = 1.0 + Math.sin(t * 16) * 0.012;
-        targetThumbY = 0.22 * sideSign * tremor;
-        targetThumbZ = -1.28 * sideSign;
-        targetIndexX = 1.48 * tremor;
-        targetMiddleX = 1.54 * tremor;
-        targetRingX = 1.48 * tremor;
-        targetPinkyX = 1.42 * tremor;
-
-        targetThumbTipX = 0.88 * tremor;
-        targetIndexTipX = 1.54 * tremor;
-        targetMiddleTipX = 1.58 * tremor;
-        targetRingTipX = 1.54 * tremor;
-        targetPinkyTipX = 1.48 * tremor;
-      } else if (gripType === 'pistol') {
-        // Adjusted for "Finger Gun" style: Index finger points straight forward like a gun barrel
-        // Other fingers (middle, ring, pinky) wrap tight around the handle coordinates.
-        // Thumb points to the sky upwards as requested.
-        const flex = 1.0 + Math.sin(t * 18) * 0.008;
-        const squeeze = isShooting ? 0.35 : 0.02; // Straightened index
-        const squeezeTip = isShooting ? 0.55 : 0.05; // Straightened tip
-
-        targetThumbX = 0.15 * flex; // Simplified: No longer counter-rotating against hand pitch
-        targetThumbY = 0.45 * sideSign * flex; // Splay out slightly
-        targetThumbZ = -0.1 * sideSign; // Natural splay
-        targetIndexX = squeeze * flex;
-        targetMiddleX = 1.6 * flex; // Tighter grip on remaining fingers
-        targetRingX = 1.55 * flex;
-        targetPinkyX = 1.5 * flex;
-
-        targetThumbTipX = 0.05 * flex; // Mostly uncurled tip
-        targetIndexTipX = squeezeTip * flex;
-        targetMiddleTipX = 1.45 * flex;
-        targetRingTipX = 1.4 * flex;
-        targetPinkyTipX = 1.35 * flex;
+      if (gripType === 'pistol') {
+        // High-level shooter wrist angle: slight forward lock & inward roll
+        targetWristX = -0.16;
+        targetWristY = 0.12 * sideSign;
+        targetWristZ = -0.06 * sideSign;
       } else if (gripType === 'knife') {
-        // Confident grip wrapping firm handle coordinates (Bottom-right grasping claw)
-        const flex = 1.0 + Math.sin(t * 18) * 0.008;
-        targetThumbY = 0.26 * sideSign * flex;
-        targetThumbZ = -1.18 * sideSign;
-        targetIndexX = 1.42 * flex;
-        targetMiddleX = 1.42 * flex;
-        targetRingX = 1.40 * flex;
-        targetPinkyX = 1.38 * flex;
-
-        targetThumbTipX = 0.72 * flex;
-        targetIndexTipX = 1.25 * flex;
-        targetMiddleTipX = 1.25 * flex;
-        targetRingTipX = 1.22 * flex;
-        targetPinkyTipX = 1.20 * flex;
+        // Aggressive slasher wrist angle: canted slightly outward for maximum leverage
+        targetWristX = 0.18;
+        targetWristY = -0.08 * sideSign;
+        targetWristZ = 0.12 * sideSign;
+      } else if (gripType === 'fist') {
+        // Guarded combat knuckles: slight inward rotation
+        targetWristX = 0.08;
+        targetWristY = 0.14 * sideSign;
+        targetWristZ = -0.08 * sideSign;
       }
 
-      // Apply base and tip rotations with smooth interpolation
-      const lerpSpeed = 0.22;
-      if (thumbBaseRef.current) {
-        thumbBaseRef.current.rotation.x = THREE.MathUtils.lerp(thumbBaseRef.current.rotation.x, targetThumbX, lerpSpeed);
-        thumbBaseRef.current.rotation.y = THREE.MathUtils.lerp(thumbBaseRef.current.rotation.y, targetThumbY, lerpSpeed);
-        thumbBaseRef.current.rotation.z = THREE.MathUtils.lerp(thumbBaseRef.current.rotation.z, targetThumbZ, lerpSpeed);
-      }
-      if (thumbTipRef.current) {
-        thumbTipRef.current.rotation.x = THREE.MathUtils.lerp(thumbTipRef.current.rotation.x, targetThumbTipX, lerpSpeed);
-      }
+      wristRef.current.rotation.x = THREE.MathUtils.lerp(wristRef.current.rotation.x, targetWristX, 0.12);
+      wristRef.current.rotation.y = THREE.MathUtils.lerp(wristRef.current.rotation.y, targetWristY, 0.12);
+      wristRef.current.rotation.z = THREE.MathUtils.lerp(wristRef.current.rotation.z, targetWristZ, 0.12);
+    }
 
-      if (indexBaseRef.current) {
-        indexBaseRef.current.rotation.x = THREE.MathUtils.lerp(indexBaseRef.current.rotation.x, targetIndexX, lerpSpeed);
-      }
-      if (indexTipRef.current) {
-        indexTipRef.current.rotation.x = THREE.MathUtils.lerp(indexTipRef.current.rotation.x, targetIndexTipX, lerpSpeed);
-      }
+    // Organic cascading glove ripples (Piano finger wave)
+    const waveSpeed = 2.6;
+    const indexBreathe  = Math.sin(t * waveSpeed + 0.0) * 0.06 + 0.08;
+    const middleBreathe = Math.sin(t * waveSpeed + 0.3) * 0.06 + 0.10;
+    const ringBreathe   = Math.sin(t * waveSpeed + 0.6) * 0.06 + 0.09;
+    const pinkyBreathe  = Math.sin(t * waveSpeed + 0.9) * 0.06 + 0.07;
 
-      if (middleBaseRef.current) {
-        middleBaseRef.current.rotation.x = THREE.MathUtils.lerp(middleBaseRef.current.rotation.x, targetMiddleX, lerpSpeed);
-      }
-      if (middleTipRef.current) {
-        middleTipRef.current.rotation.x = THREE.MathUtils.lerp(middleTipRef.current.rotation.x, targetMiddleTipX, lerpSpeed);
-      }
+    // Default resting values (Bottom-left/Top-right style cupped hand shapes)
+    let targetThumbX = 0.1;
+    let targetThumbY = (0.16 + Math.sin(t * 1.5) * 0.02) * sideSign;
+    let targetThumbZ = (-Math.PI / 4.6 - indexBreathe * 0.25) * sideSign;
+    let targetIndexX = indexBreathe;
+    let targetMiddleX = middleBreathe;
+    let targetRingX = ringBreathe;
+    let targetPinkyX = pinkyBreathe;
 
-      if (ringBaseRef.current) {
-        ringBaseRef.current.rotation.x = THREE.MathUtils.lerp(ringBaseRef.current.rotation.x, targetRingX, lerpSpeed);
-      }
-      if (ringTipRef.current) {
-        ringTipRef.current.rotation.x = THREE.MathUtils.lerp(ringTipRef.current.rotation.x, targetRingTipX, lerpSpeed);
-      }
+    // Double-joint secondary curling ratios for natural hand outlines
+    let targetThumbTipX = 0.12 + Math.sin(t * 1.5) * 0.02;
+    let targetIndexTipX = indexBreathe * 1.2;
+    let targetMiddleTipX = middleBreathe * 1.25;
+    let targetRingTipX = ringBreathe * 1.2;
+    let targetPinkyTipX = pinkyBreathe * 1.15;
 
-      if (pinkyBaseRef.current) {
-        pinkyBaseRef.current.rotation.x = THREE.MathUtils.lerp(pinkyBaseRef.current.rotation.x, targetPinkyX, lerpSpeed);
-      }
-      if (pinkyTipRef.current) {
-        pinkyTipRef.current.rotation.x = THREE.MathUtils.lerp(pinkyTipRef.current.rotation.x, targetPinkyTipX, lerpSpeed);
-      }
-    };
-    gsap.ticker.add(handleTick);
-    return () => gsap.ticker.remove(handleTick);
-  }, { dependencies: [gripType, isShooting, sideSign, position] });
+    if (gripType === 'fist') {
+      // Tight clenched fist (Top-left image): base + tips wrap 90+ degrees with high-frequency adrenaline muscle flex/tremor
+      const tremor = 1.0 + Math.sin(t * 16) * 0.012;
+      targetThumbY = 0.22 * sideSign * tremor;
+      targetThumbZ = -1.28 * sideSign;
+      targetIndexX = 1.48 * tremor;
+      targetMiddleX = 1.54 * tremor;
+      targetRingX = 1.48 * tremor;
+      targetPinkyX = 1.42 * tremor;
+
+      targetThumbTipX = 0.88 * tremor;
+      targetIndexTipX = 1.54 * tremor;
+      targetMiddleTipX = 1.58 * tremor;
+      targetRingTipX = 1.54 * tremor;
+      targetPinkyTipX = 1.48 * tremor;
+    } else if (gripType === 'pistol') {
+      // Adjusted for "Finger Gun" style: Index finger points straight forward like a gun barrel
+      // Other fingers (middle, ring, pinky) wrap tight around the handle coordinates.
+      // Thumb points to the sky upwards as requested.
+      const flex = 1.0 + Math.sin(t * 18) * 0.008;
+      const squeeze = isShooting ? 0.35 : 0.02; // Straightened index
+      const squeezeTip = isShooting ? 0.55 : 0.05; // Straightened tip
+
+      targetThumbX = 0.15 * flex; // Simplified: No longer counter-rotating against hand pitch
+      targetThumbY = 0.45 * sideSign * flex; // Splay out slightly
+      targetThumbZ = -0.1 * sideSign; // Natural splay
+      targetIndexX = squeeze * flex;
+      targetMiddleX = 1.6 * flex; // Tighter grip on remaining fingers
+      targetRingX = 1.55 * flex;
+      targetPinkyX = 1.5 * flex;
+
+      targetThumbTipX = 0.05 * flex; // Mostly uncurled tip
+      targetIndexTipX = squeezeTip * flex;
+      targetMiddleTipX = 1.45 * flex;
+      targetRingTipX = 1.4 * flex;
+      targetPinkyTipX = 1.35 * flex;
+    } else if (gripType === 'knife') {
+      // Confident grip wrapping firm handle coordinates (Bottom-right grasping claw)
+      const flex = 1.0 + Math.sin(t * 18) * 0.008;
+      targetThumbY = 0.26 * sideSign * flex;
+      targetThumbZ = -1.18 * sideSign;
+      targetIndexX = 1.42 * flex;
+      targetMiddleX = 1.42 * flex;
+      targetRingX = 1.40 * flex;
+      targetPinkyX = 1.38 * flex;
+
+      targetThumbTipX = 0.72 * flex;
+      targetIndexTipX = 1.25 * flex;
+      targetMiddleTipX = 1.25 * flex;
+      targetRingTipX = 1.22 * flex;
+      targetPinkyTipX = 1.20 * flex;
+    }
+
+    // Apply base and tip rotations with smooth interpolation
+    const lerpSpeed = 0.22;
+    if (thumbBaseRef.current) {
+      thumbBaseRef.current.rotation.x = THREE.MathUtils.lerp(thumbBaseRef.current.rotation.x, targetThumbX, lerpSpeed);
+      thumbBaseRef.current.rotation.y = THREE.MathUtils.lerp(thumbBaseRef.current.rotation.y, targetThumbY, lerpSpeed);
+      thumbBaseRef.current.rotation.z = THREE.MathUtils.lerp(thumbBaseRef.current.rotation.z, targetThumbZ, lerpSpeed);
+    }
+    if (thumbTipRef.current) {
+      thumbTipRef.current.rotation.x = THREE.MathUtils.lerp(thumbTipRef.current.rotation.x, targetThumbTipX, lerpSpeed);
+    }
+
+    if (indexBaseRef.current) {
+      indexBaseRef.current.rotation.x = THREE.MathUtils.lerp(indexBaseRef.current.rotation.x, targetIndexX, lerpSpeed);
+    }
+    if (indexTipRef.current) {
+      indexTipRef.current.rotation.x = THREE.MathUtils.lerp(indexTipRef.current.rotation.x, targetIndexTipX, lerpSpeed);
+    }
+
+    if (middleBaseRef.current) {
+      middleBaseRef.current.rotation.x = THREE.MathUtils.lerp(middleBaseRef.current.rotation.x, targetMiddleX, lerpSpeed);
+    }
+    if (middleTipRef.current) {
+      middleTipRef.current.rotation.x = THREE.MathUtils.lerp(middleTipRef.current.rotation.x, targetMiddleTipX, lerpSpeed);
+    }
+
+    if (ringBaseRef.current) {
+      ringBaseRef.current.rotation.x = THREE.MathUtils.lerp(ringBaseRef.current.rotation.x, targetRingX, lerpSpeed);
+    }
+    if (ringTipRef.current) {
+      ringTipRef.current.rotation.x = THREE.MathUtils.lerp(ringTipRef.current.rotation.x, targetRingTipX, lerpSpeed);
+    }
+
+    if (pinkyBaseRef.current) {
+      pinkyBaseRef.current.rotation.x = THREE.MathUtils.lerp(pinkyBaseRef.current.rotation.x, targetPinkyX, lerpSpeed);
+    }
+    if (pinkyTipRef.current) {
+      pinkyTipRef.current.rotation.x = THREE.MathUtils.lerp(pinkyTipRef.current.rotation.x, targetPinkyTipX, lerpSpeed);
+    }
+  });
 
   return (
     <group ref={handRef} position={position} scale={scale}>
@@ -352,29 +350,24 @@ const KnifeAttachment = ({ isLeft, active }: { isLeft: boolean; active: boolean 
   const groupRef = useRef<THREE.Group>(null);
   const transitionVal = useRef(0);
 
-  useGSAP(() => {
-    const handleTick = (time: number, deltaTime: number) => {
-      const delta = Math.min(deltaTime / 1000, 0.1);
-      const target = active ? 1 : 0;
-      transitionVal.current = THREE.MathUtils.lerp(transitionVal.current, target, 1 - Math.exp(-15 * delta));
+  useFrame((state, delta) => {
+    const target = active ? 1 : 0;
+    transitionVal.current = THREE.MathUtils.lerp(transitionVal.current, target, 1 - Math.exp(-15 * delta));
+    
+    if (groupRef.current) {
+      // Scale-in to eliminate snaps on grab
+      groupRef.current.scale.setScalar(transitionVal.current);
       
-      if (groupRef.current) {
-        // Scale-in to eliminate snaps on grab
-        groupRef.current.scale.setScalar(transitionVal.current);
-        
-        // Animate position: slide up from palm core bottom (Y = -0.06) up to slotting knuckle position (Y = 0.045)
-        groupRef.current.position.y = THREE.MathUtils.lerp(-0.06, 0.04, transitionVal.current);
-        groupRef.current.position.z = THREE.MathUtils.lerp(-0.02, 0.035, transitionVal.current);
-        
-        // Animate rotation: twist slightly on draw/grabbing
-        groupRef.current.rotation.x = THREE.MathUtils.lerp(Math.PI / 4, 0.25, transitionVal.current);
-        // Corrected relative rotation for better grip alignment
-        groupRef.current.rotation.y = THREE.MathUtils.lerp(0, isLeft ? -0.1 : 0.1, transitionVal.current);
-      }
-    };
-    gsap.ticker.add(handleTick);
-    return () => gsap.ticker.remove(handleTick);
-  }, { dependencies: [active, isLeft] });
+      // Animate position: slide up from palm core bottom (Y = -0.06) up to slotting knuckle position (Y = 0.045)
+      groupRef.current.position.y = THREE.MathUtils.lerp(-0.06, 0.04, transitionVal.current);
+      groupRef.current.position.z = THREE.MathUtils.lerp(-0.02, 0.035, transitionVal.current);
+      
+      // Animate rotation: twist slightly on draw/grabbing
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(Math.PI / 4, 0.25, transitionVal.current);
+      // Corrected relative rotation for better grip alignment
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(0, isLeft ? -0.1 : 0.1, transitionVal.current);
+    }
+  });
 
   // CHANGE: Created a single custom BufferGeometry blade that combines the spine and tapered point.
   // EXPLANATION: Eliminates bad overlapping multi-geometry seams and lighting artifacts. Only the tip is sharped/tapered.
@@ -521,66 +514,61 @@ const HandgunAttachment = ({
   const shellRot = useRef(new THREE.Vector3());
   const shellRotVel = useRef(new THREE.Vector3());
 
-  useGSAP(() => {
-    const handleTick = (time: number, deltaTime: number) => {
-      const delta = Math.min(deltaTime / 1000, 0.1);
-      const target = active ? 1 : 0;
-      transitionVal.current = THREE.MathUtils.lerp(transitionVal.current, target, 1 - Math.exp(-15 * delta));
+  useFrame((state, delta) => {
+    const target = active ? 1 : 0;
+    transitionVal.current = THREE.MathUtils.lerp(transitionVal.current, target, 1 - Math.exp(-15 * delta));
+    
+    if (groupRef.current) {
+      // Scale-in to eliminate snaps on grab
+      groupRef.current.scale.setScalar(transitionVal.current);
       
-      if (groupRef.current) {
-        // Scale-in to eliminate snaps on grab
-        groupRef.current.scale.setScalar(transitionVal.current);
-        
-        // Animate position: slide up from palm bottom Y = -0.05 to sliding slot Y = 0.045, and Z = 0.025
-        groupRef.current.position.y = THREE.MathUtils.lerp(-0.05, 0.045, transitionVal.current); // Slightly raised for finger alignment
-        groupRef.current.position.z = THREE.MathUtils.lerp(-0.01, 0.025, transitionVal.current);
-        
-        // CHANGE: Corrected groupRef.current.rotation.order to 'YXZ' and restored -Math.PI / 2 on X.
-        // EXPLANATION: Corrected rotation order from 'XYZ' to 'YXZ' so that the custom -Math.PI / 2 X-tilt and Y counter-twist relative to the upright wrist are computed in the correct sequential Euler space. This perfectly projects the weapon barrels straight forward and points laser sights nicely along the Index finger line without modifying the hands.
-        // HOW TO UNDO: Revert groupRef.current.rotation.order to 'XYZ'.
-        groupRef.current.rotation.order = 'YXZ';
-        groupRef.current.rotation.x = -Math.PI / 2;
-        groupRef.current.rotation.y = isLeft ? -Math.PI / 2 : Math.PI / 2;
-        groupRef.current.rotation.z = 0;
-      }
+      // Animate position: slide up from palm bottom Y = -0.05 to sliding slot Y = 0.045, and Z = 0.025
+      groupRef.current.position.y = THREE.MathUtils.lerp(-0.05, 0.045, transitionVal.current); // Slightly raised for finger alignment
+      groupRef.current.position.z = THREE.MathUtils.lerp(-0.01, 0.025, transitionVal.current);
+      
+      // CHANGE: Corrected groupRef.current.rotation.order to 'YXZ' and restored -Math.PI / 2 on X.
+      // EXPLANATION: Corrected rotation order from 'XYZ' to 'YXZ' so that the custom -Math.PI / 2 X-tilt and Y counter-twist relative to the upright wrist are computed in the correct sequential Euler space. This perfectly projects the weapon barrels straight forward and points laser sights nicely along the Index finger line without modifying the hands.
+      // HOW TO UNDO: Revert groupRef.current.rotation.order to 'XYZ'.
+      groupRef.current.rotation.order = 'YXZ';
+      groupRef.current.rotation.x = -Math.PI / 2;
+      groupRef.current.rotation.y = isLeft ? -Math.PI / 2 : Math.PI / 2;
+      groupRef.current.rotation.z = 0;
+    }
 
-      // Capture exact frame in which weapon shoots to trigger blowback recoil & shell ejection
-      if (flashActive && !lastFlashActive.current) {
-        slideZ.current = -0.055; // Bolt slide moves back
-        triggerRot.current = -0.32; // Trigger pulls back
-        hammerRot.current = 0.45; // Hammer rotates back
-        
-        // Eject a shiny golden hollow bullet casing out of ejection port
-        shellActive.current = true;
-        shellPos.current.set(isLeft ? -0.012 : 0.012, 0.048, 0.038);
-        shellVel.current.set(
-          (isLeft ? -0.35 : 0.35) + (Math.random() - 0.5) * 0.1,
-          0.52 + Math.random() * 0.15,
-          -0.15 - Math.random() * 0.15
-        );
-        shellRot.current.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-        shellRotVel.current.set(12 + Math.random() * 8, 12 + Math.random() * 8, 12 + Math.random() * 8);
-      }
-      lastFlashActive.current = !!flashActive;
+    // Capture exact frame in which weapon shoots to trigger blowback recoil & shell ejection
+    if (flashActive && !lastFlashActive.current) {
+      slideZ.current = -0.055; // Bolt slide moves back
+      triggerRot.current = -0.32; // Trigger pulls back
+      hammerRot.current = 0.45; // Hammer rotates back
+      
+      // Eject a shiny golden hollow bullet casing out of ejection port
+      shellActive.current = true;
+      shellPos.current.set(isLeft ? -0.012 : 0.012, 0.048, 0.038);
+      shellVel.current.set(
+        (isLeft ? -0.35 : 0.35) + (Math.random() - 0.5) * 0.1,
+        0.52 + Math.random() * 0.15,
+        -0.15 - Math.random() * 0.15
+      );
+      shellRot.current.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      shellRotVel.current.set(12 + Math.random() * 8, 12 + Math.random() * 8, 12 + Math.random() * 8);
+    }
+    lastFlashActive.current = flashActive;
 
-      // Decay recoil offsets smoothly back to normal
-      slideZ.current = THREE.MathUtils.lerp(slideZ.current, 0, 1 - Math.exp(-18 * delta));
-      triggerRot.current = THREE.MathUtils.lerp(triggerRot.current, 0, 1 - Math.exp(-22 * delta));
-      hammerRot.current = THREE.MathUtils.lerp(hammerRot.current, -0.18, 1 - Math.exp(-6 * delta));
+    // Decay recoil offsets smoothly back to normal
+    slideZ.current = THREE.MathUtils.lerp(slideZ.current, 0, 1 - Math.exp(-18 * delta));
+    triggerRot.current = THREE.MathUtils.lerp(triggerRot.current, 0, 1 - Math.exp(-22 * delta));
+    hammerRot.current = THREE.MathUtils.lerp(hammerRot.current, -0.18, 1 - Math.exp(-6 * delta));
 
-      // Casing falling gravity updates
-      if (shellActive.current) {
-        shellVel.current.y -= 9.8 * delta * 0.65;
-        shellPos.current.addScaledVector(shellVel.current, delta);
-        shellRot.current.addScaledVector(shellRotVel.current, delta);
-        if (shellPos.current.y < -0.35) {
-          shellActive.current = false;
-        }
+    // Casing falling gravity updates
+    if (shellActive.current) {
+      shellVel.current.y -= 9.8 * delta * 0.65;
+      shellPos.current.addScaledVector(shellVel.current, delta);
+      shellRot.current.addScaledVector(shellRotVel.current, delta);
+      if (shellPos.current.y < -0.35) {
+        shellActive.current = false;
       }
-    };
-    gsap.ticker.add(handleTick);
-    return () => gsap.ticker.remove(handleTick);
-  }, { dependencies: [active, isLeft, flashActive] });
+    }
+  });
 
   return (
     <group ref={groupRef} rotation={[-Math.PI / 2, 0, 0]}>
@@ -758,7 +746,6 @@ export const Player = React.memo(({
   attackTrigger = 0,
   weaponWheelOpen = false
 }: PlayerProps) => {
-  const { camera } = useThree();
   const characterRef = useRef<THREE.Group>(null);
   const rigidBodyRef = useRef<any>(null);
   const leftTimelineRef = useRef<gsap.core.Timeline | null>(null);

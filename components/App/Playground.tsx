@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { motion, useMotionValue, MotionValue, useTransform } from 'framer-motion';
 import { 
   Sky, 
@@ -21,7 +21,6 @@ import * as THREE from 'three';
 import { Player } from './Player';
 import { GameControls } from './Controls';
 import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier';
 
 // --- PHYSICS TOYS COMPONENT (Fun Interactive Obstacles) ---
@@ -125,43 +124,38 @@ const Grass = () => {
     return pos;
   }, []);
 
-  const { camera } = useThree();
-
-  useGSAP(() => {
-    const handleTick = (time: number) => {
-      if (!meshRef.current) return;
-      const playerPos = camera.position;
+  useFrame((state) => {
+    if (!meshRef.current) return;
+    const time = state.clock.getElapsedTime();
+    const playerPos = state.camera.position;
+    
+    for (let i = 0; i < GRASS_COUNT_DENSE; i++) {
+      const stride = i * 4;
+      const px = positions[stride];
+      const pz = positions[stride + 2];
       
-      for (let i = 0; i < GRASS_COUNT_DENSE; i++) {
-        const stride = i * 4;
-        const px = positions[stride];
-        const pz = positions[stride + 2];
-        
-        const dx = px - playerPos.x;
-        const dz = pz - playerPos.z;
-        const distSq = dx * dx + dz * dz;
+      const dx = px - playerPos.x;
+      const dz = pz - playerPos.z;
+      const distSq = dx * dx + dz * dz;
 
-        if (distSq < CULL_DISTANCE_SQ) {
-          dummy.position.set(px, 0, pz);
-          // Fluffy wind: multi-layered sine waves
-          const noise = Math.sin(time * 1.2 + px * 0.3) * Math.cos(time * 0.7 + pz * 0.3);
-          dummy.rotation.set(noise * 0.2, positions[stride + 3] + noise * 0.1, noise * 0.1);
-          
-          // Smooth scale fade at edges
-          const scaleFactor = Math.min(1, (CULL_DISTANCE_SQ - distSq) / (CULL_DISTANCE_SQ * 0.15));
-          dummy.scale.set(1.4 * scaleFactor, (1.0 + Math.random() * 0.5) * scaleFactor, 1.4 * scaleFactor);
-        } else {
-          dummy.scale.set(0, 0, 0);
-        }
+      if (distSq < CULL_DISTANCE_SQ) {
+        dummy.position.set(px, 0, pz);
+        // Fluffy wind: multi-layered sine waves
+        const noise = Math.sin(time * 1.2 + px * 0.3) * Math.cos(time * 0.7 + pz * 0.3);
+        dummy.rotation.set(noise * 0.2, positions[stride + 3] + noise * 0.1, noise * 0.1);
         
-        dummy.updateMatrix();
-        meshRef.current.setMatrixAt(i, dummy.matrix);
+        // Smooth scale fade at edges
+        const scaleFactor = Math.min(1, (CULL_DISTANCE_SQ - distSq) / (CULL_DISTANCE_SQ * 0.15));
+        dummy.scale.set(1.4 * scaleFactor, (1.0 + Math.random() * 0.5) * scaleFactor, 1.4 * scaleFactor);
+      } else {
+        dummy.scale.set(0, 0, 0);
       }
-      meshRef.current.instanceMatrix.needsUpdate = true;
-    };
-    gsap.ticker.add(handleTick);
-    return () => gsap.ticker.remove(handleTick);
-  }, { dependencies: [camera, positions] });
+      
+      dummy.updateMatrix();
+      meshRef.current.setMatrixAt(i, dummy.matrix);
+    }
+    meshRef.current.instanceMatrix.needsUpdate = true;
+  });
 
   return (
     <instancedMesh 
