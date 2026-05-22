@@ -12,5 +12,6 @@ Tracking all issues, from critical bugs to minor suggestions.
 
 ## Suggestion (Improvements)
 
+-   **[2026-05-22] (Implemented)**: Replace low-detail robotic floating cartoon hands with detailed wrist-only segments containing realistic human skin tones and detailed custom wear (smartwatch, thread/bead jewelry).
 -   [ ] Add more interactive SVG animations to the System Spec window for each rule.
 -   ...

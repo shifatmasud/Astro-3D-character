@@ -1,10 +1,11 @@
 import React, { useRef } from 'react';
 import { MotionValue } from 'framer-motion';
-import { Box, Capsule, Cylinder } from '@react-three/drei';
+import { Box, Capsule, Cylinder, RoundedBox, Sphere } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
+import { FloatingHand } from './FloatingHand';
 
 export interface CharacterProps {
   mvX: MotionValue<number>;
@@ -43,6 +44,8 @@ export const Character = React.memo(({
   const bodyRef = useRef<THREE.Group>(null);
   const backpackRef = useRef<THREE.Group>(null);
   const flameRef = useRef<THREE.Group>(null);
+  const leftHandRef = useRef<THREE.Group>(null);
+  const rightHandRef = useRef<THREE.Group>(null);
   const leftLegRef = useRef<THREE.Group>(null);
   const rightLegRef = useRef<THREE.Group>(null);
 
@@ -55,10 +58,20 @@ export const Character = React.memo(({
   const velocity = useRef({ x: 0, y: 0, z: 0 });
 
   useFrame((state, delta) => {
+    const time = state.clock.getElapsedTime();
     const x = mvX.get();
     const y = mvY.get();
     const jump = mvJump.get() > 0.5;
     const { camera } = state;
+
+    // Floating hands animation
+    if (leftHandRef.current && rightHandRef.current) {
+        const float = Math.sin(time * 3) * 0.05;
+        leftHandRef.current.position.set(-0.5, 0.8 + float, 0.4);
+        rightHandRef.current.position.set(0.5, 0.8 + float, 0.4);
+        leftHandRef.current.rotation.z = Math.sin(time * 2) * 0.1;
+        rightHandRef.current.rotation.z = -Math.sin(time * 2) * 0.1;
+    }
 
     // Handle Jump Animation with GSAP - Only on change
     if (jump !== lastJump.current) {
@@ -199,7 +212,7 @@ export const Character = React.memo(({
             </group>
 
             {/* Visor */}
-            <Box args={[0.4, 0.25, 0.15]} position={[0, 0.2, 0.3]}>
+            <RoundedBox args={[0.4, 0.25, 0.15]} radius={0.08} smoothness={4} position={[0, 0.2, 0.3]}>
               <meshPhysicalMaterial 
                 color={visorColor} 
                 roughness={0.1} 
@@ -208,7 +221,19 @@ export const Character = React.memo(({
                 thickness={0.5} 
                 transparent 
               />
-            </Box>
+            </RoundedBox>
+        </group>
+
+        {/* Floating Hands with red 5-finger wrists */}
+        <group ref={leftHandRef}>
+            <group rotation={[0, 0, Math.PI / 4.5]}>
+                <FloatingHand isLeft={true} color={activeBodyColor} scale={1.25} position={[0, 0, 0]} />
+            </group>
+        </group>
+        <group ref={rightHandRef}>
+            <group rotation={[0, 0, -Math.PI / 4.5]}>
+                <FloatingHand isLeft={false} color={activeBodyColor} scale={1.25} position={[0, 0, 0]} />
+            </group>
         </group>
 
         {/* Legs */}

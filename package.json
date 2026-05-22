@@ -24,6 +24,7 @@
     "react-dom": "^19.2.3",
     "react-error-boundary": "^6.1.1",
     "react-live": "^4.1.8",
+    "styled-components": "^6.3.12",
     "three": "^0.183.1"
   },
   "devDependencies": {

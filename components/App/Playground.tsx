@@ -296,7 +296,7 @@ export const Playground = React.memo(() => {
 
         {/* Character */}
         <Character mvX={mvX} mvY={mvY} mvJump={mvJump} />
-
+        
         {/* 3D Controls */}
         <OrbitControls 
           enableDamping 
