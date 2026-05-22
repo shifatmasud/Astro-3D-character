@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { motion, useMotionValue, MotionValue, useTransform } from 'framer-motion';
 import { 
   Sky, 
@@ -21,6 +21,51 @@ import * as THREE from 'three';
 import { Player } from './Player';
 import { GameControls } from './Controls';
 import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier';
+
+// --- PHYSICS TOYS COMPONENT (Fun Interactive Obstacles) ---
+const PhysicsToys = () => {
+  const toys = useMemo(() => {
+    return Array.from({ length: 45 }).map((_, i) => ({
+      id: i,
+      type: i % 2 === 0 ? 'box' : 'sphere',
+      position: [
+        (Math.random() - 0.5) * 45,
+        2 + Math.random() * 8,
+        (Math.random() - 0.5) * 45
+      ] as [number, number, number],
+      scale: 0.6 + Math.random() * 0.9,
+      color: `hsl(${Math.random() * 360}, 85%, 65%)`
+    }));
+  }, []);
+
+  return (
+    <group>
+      {toys.map((toy) => (
+        <RigidBody 
+          key={toy.id} 
+          type="dynamic" 
+          position={toy.position}
+          colliders={toy.type === 'box' ? 'cuboid' : 'ball'}
+          linearDamping={1.0}
+          angularDamping={1.0}
+          mass={0.4}
+        >
+          {toy.type === 'box' ? (
+            <Box args={[toy.scale, toy.scale, toy.scale]} castShadow receiveShadow>
+              <meshStandardMaterial color={toy.color} roughness={0.3} metalness={0.1} />
+            </Box>
+          ) : (
+            <Sphere args={[toy.scale * 0.5, 16, 16]} castShadow receiveShadow>
+              <meshStandardMaterial color={toy.color} roughness={0.3} metalness={0.1} />
+            </Sphere>
+          )}
+        </RigidBody>
+      ))}
+    </group>
+  );
+};
 
 // --- CONSTANTS ---
 const WORLD_SIZE = 400;
@@ -80,38 +125,43 @@ const Grass = () => {
     return pos;
   }, []);
 
-  useFrame((state) => {
-    if (!meshRef.current) return;
-    const time = state.clock.getElapsedTime();
-    const playerPos = state.camera.position;
-    
-    for (let i = 0; i < GRASS_COUNT_DENSE; i++) {
-      const stride = i * 4;
-      const px = positions[stride];
-      const pz = positions[stride + 2];
-      
-      const dx = px - playerPos.x;
-      const dz = pz - playerPos.z;
-      const distSq = dx * dx + dz * dz;
+  const { camera } = useThree();
 
-      if (distSq < CULL_DISTANCE_SQ) {
-        dummy.position.set(px, 0, pz);
-        // Fluffy wind: multi-layered sine waves
-        const noise = Math.sin(time * 1.2 + px * 0.3) * Math.cos(time * 0.7 + pz * 0.3);
-        dummy.rotation.set(noise * 0.2, positions[stride + 3] + noise * 0.1, noise * 0.1);
-        
-        // Smooth scale fade at edges
-        const scaleFactor = Math.min(1, (CULL_DISTANCE_SQ - distSq) / (CULL_DISTANCE_SQ * 0.15));
-        dummy.scale.set(1.4 * scaleFactor, (1.0 + Math.random() * 0.5) * scaleFactor, 1.4 * scaleFactor);
-      } else {
-        dummy.scale.set(0, 0, 0);
-      }
+  useGSAP(() => {
+    const handleTick = (time: number) => {
+      if (!meshRef.current) return;
+      const playerPos = camera.position;
       
-      dummy.updateMatrix();
-      meshRef.current.setMatrixAt(i, dummy.matrix);
-    }
-    meshRef.current.instanceMatrix.needsUpdate = true;
-  });
+      for (let i = 0; i < GRASS_COUNT_DENSE; i++) {
+        const stride = i * 4;
+        const px = positions[stride];
+        const pz = positions[stride + 2];
+        
+        const dx = px - playerPos.x;
+        const dz = pz - playerPos.z;
+        const distSq = dx * dx + dz * dz;
+
+        if (distSq < CULL_DISTANCE_SQ) {
+          dummy.position.set(px, 0, pz);
+          // Fluffy wind: multi-layered sine waves
+          const noise = Math.sin(time * 1.2 + px * 0.3) * Math.cos(time * 0.7 + pz * 0.3);
+          dummy.rotation.set(noise * 0.2, positions[stride + 3] + noise * 0.1, noise * 0.1);
+          
+          // Smooth scale fade at edges
+          const scaleFactor = Math.min(1, (CULL_DISTANCE_SQ - distSq) / (CULL_DISTANCE_SQ * 0.15));
+          dummy.scale.set(1.4 * scaleFactor, (1.0 + Math.random() * 0.5) * scaleFactor, 1.4 * scaleFactor);
+        } else {
+          dummy.scale.set(0, 0, 0);
+        }
+        
+        dummy.updateMatrix();
+        meshRef.current.setMatrixAt(i, dummy.matrix);
+      }
+      meshRef.current.instanceMatrix.needsUpdate = true;
+    };
+    gsap.ticker.add(handleTick);
+    return () => gsap.ticker.remove(handleTick);
+  }, { dependencies: [camera, positions] });
 
   return (
     <instancedMesh 
@@ -281,7 +331,6 @@ export const Playground = React.memo(() => {
         
         {/* Environment & Lighting */}
         <Sky sunPosition={[100, 20, 100]} />
-        <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
         <fogExp2 attach="fog" args={['#87ceeb', 0.01]} />
         <ambientLight intensity={0.5} />
         <directionalLight 
@@ -291,27 +340,30 @@ export const Playground = React.memo(() => {
           shadow-mapSize={[512, 512]} 
         />
 
-        {/* World Elements */}
-        <group>
-          <Water />
-          <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-            <planeGeometry args={[WORLD_SIZE, WORLD_SIZE]} />
-            <meshStandardMaterial color="#3f6212" />
-          </mesh>
-          <Grass />
-          <Forest />
-          <Clouds />
-        </group>
+        {/* Rapier Physics Core */}
+        <Physics gravity={[0, -28, 0]}>
+          {/* Physical Ground with robust cuboid collider */}
+          <RigidBody type="fixed" colliders={false}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+              <planeGeometry args={[WORLD_SIZE, WORLD_SIZE]} />
+              <meshStandardMaterial color="#3f6212" roughness={0.9} />
+            </mesh>
+            <CuboidCollider args={[WORLD_SIZE / 2, 1, WORLD_SIZE / 2]} position={[0, -1, 0]} />
+          </RigidBody>
 
-        {/* Player */}
-        <Player 
-          mvX={mvX} 
-          mvY={mvY} 
-          mvJump={mvJump} 
-          currentWeapon={currentWeapon} 
-          attackTrigger={attackTrigger}
-          weaponWheelOpen={weaponWheelOpen}
-        />
+          {/* Interactive Physics Toys */}
+          <PhysicsToys />
+
+          {/* Player Character */}
+          <Player 
+            mvX={mvX} 
+            mvY={mvY} 
+            mvJump={mvJump} 
+            currentWeapon={currentWeapon} 
+            attackTrigger={attackTrigger}
+            weaponWheelOpen={weaponWheelOpen}
+          />
+        </Physics>
         
         {/* 3D Controls */}
         <OrbitControls 

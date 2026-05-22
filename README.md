@@ -222,3 +222,53 @@ Imagine you're building with LEGOs. This project gives you a super organized box
 - **Perfect Forward-Pointing Gun Alignments**: Programmed the local handgun attachments using custom rotation order `'XYZ'` and values `[-Math.PI / 2, isLeft ? -Math.PI / 2 : Math.PI / 2, 0]`—the exact mathematical inverse of the wrist rotations. This cancels forearm twists perfectly, rendering the gun barrel pointing perfectly forward (+Z Axis) and the gun's handle vertically straight down to the ground.
 - **Accurate Shoot Animation Recoil Reset**: Aligned the GSAP shoot recoil timeline so that after weapon firing, the hand resets cleanly to the correct forward-pointing rotations instead of resetting to a sideways alignment.
 
+---
+
+## 🔫 Session 12 Update: Handgun Forward Aim Aiming Fix Completed
+
+### Summary
+- **Corrected Handgun Pivot Pitch**: Resolved the issue where the handguns were aiming downwards instead of forward. Restored rotation around the local X-axis to `[-Math.PI / 2]` in the update loop, preventing rotation calculations from overriding the forward-aiming pitch of the gun.
+- **Hands Left Completely Untouched**: Guaranteed that hand geometries, positions, and animation rigs were left entirely untouched, maintaining their solid pre-existing character-glove physics.
+- **Perfect Weapon-Frame Coupling**: Synchronized muzzle flashes, laser sight paths, and tracers to perfectly follow the corrected forward-facing gun barrels.
+
+---
+
+## 🔫 Session 13 Hotfix: Exact Euler Rotation Order Handgun Aim Fix
+
+### Summary
+- **Sequence Transformation Realignment**: Fixed the bug where the handguns were aiming downwards or offset relative to the upright, fingers-forward target hands. Corrected the handgun's local Euler rotation order from `XYZ` to `YXZ` within the main `useFrame` frame-tick loop in `Player.tsx`.
+- **Flawless Inverse Wrist Cancellation**: The correct `YXZ` order allows sequential Euler transformations (applying X rotation first and Y counter-twist second) to perfectly cancel the parent hand's wrist pitch and tilt. This locks handgun barrels (and custom red laser guide sights) pointing 100% forward (+Z space) with handles hanging vertically straight down to the floor.
+- **Hands Maintained Pristine**: Left the entire hand skeletal physics and fingers-forward models completely untouched, satisfying literal user boundaries perfectly.
+
+---
+
+## 🌊 Session 15 Update: Optimized Sound Pooling, Walk & Jetpack SFX, and High-Performance Minimalist Arena
+
+### Summary
+- **Zero-Allocation Audio Pooling**: Replaced heavy real-time Web Audio API `AudioContext.createBuffer` creation loops with an elegant pre-allocated `AudioBuffer` pool created once at startup. Highly optimized to completely prevent real-time heap allocations and garbage collection frame-frictional stutters during attacks and movement.
+- **Physical Walk Footsteps**: Added cartoony low-frequency thuds and crisp high-passed rustle footsteps synced directly to the character's skeletal leg-swing maxima and minima on solid ground (`y === 0`), dynamically responding to current velocities.
+- **Continuous Rocket Jetpack Loops**: Rigged seamless loopable jetpack thruster engines using pooled noise and deep sawtooth oscillators. Integrated smooth exponential volume fade-ins and fade-outs to completely eliminate low-frequency popping or visual-audio lag on takeoff and landing.
+- **High-Performance Minimalist Environment**: Stripped away heavy landscape components like culling 35,000 grass blades (`Grass`), procedural trees (`Forest`), vertex-heavy cloud boxes (`Clouds`), stars (`Stars`), and reflective surfaces (`Water`). Delivered a super crisp, high-framerate, lightweight arena featuring exclusively the green ground and the clear blue sky.
+- **Flawless Move & Attack Concurrency**: Freed up CPU thread ticks by eliminating real-time audio sample generation, allowing the player to sprint and trigger slaps, slashes, or double-gun fire concurrently with flawless, butter-like frame performance.
+
+---
+
+## ⚡ Session 16 Update: Relative Offset-Nested Combat Animations & Flawless Movement Concurrency
+
+### Summary
+- **Decoupled Combat & Locomotion Layering**: Designed nested offset sub-groups (`leftHandOffsetGroupRef` and `rightHandOffsetGroupRef`) inside the main hand pivot nodes. 
+- **Relative GSAP Timelines**: Refactored weapons actions and swing timelines to animate local offsets about the parent pivots instead of hardcoding absolute coordinates, allowing movement, walking swing oscillations, character tilts, and landing lag to blend flawlessly on top of attacks concurrently.
+- **Cheek-Level Face Slaps & Diagonal knife Slashes**: Upgraded the Slap and Knife combat sweeps with customized relative wind-ups, impacts and returns, fully resolving the bug where blades got stuck forward after slashing.
+- **Zero-Snap Transition Blends**: Removed frame-freezing `leftMoving`/`rightMoving` guards from the physics tick. Hands now interpolate fluidly between resting orientations and attack states without visual clipping, snapping or jittering.
+
+---
+
+## 🎯 Session 17 Update: Real-Time Dynamic Rapier Physics Integration
+
+### Summary
+- **Rapier Physics Core Integration**: Replaced primitive custom mathematical Euler movement equations with a fully authoritative `@react-three/rapier` physics simulation sandbox, wrapping the player inside a vertical dynamic `<RigidBody>`.
+- **Lock-Rotational Capsule Rigging**: Equipped the player shape with a carefully scaled `<CapsuleCollider>` (`args={[0.42, 0.35]}`) and configured `enabledRotations={[false, false, false]}` to maintain perfect verticality during high jumps or collisions.
+- **Direct Linear Velocity Driving**: Connected WASD/direction-pad touch controls directly to rigid-body linear velocity `setLinvel()` while supporting custom camera-relative yaw angles, breathing sways, slerped leg swings, and inertia weight sways.
+- **Continuous Jetpack Thrust**: Configured the rocket-booster thrust to apply dynamic vertical velocity up to a cap when space is pressed/held, smoothly integrating into standard gravity falling states.
+- **Static Ground Colliders & Obstacles Playground**: Converted the flat green arena to use a fixed `<RigidBody>` with a massive `<CuboidCollider>` to prevent falling or clipping outside the map. Scattered 45 colorful dynamic toy props (bouncy spheres and stacked toy blocks) with true mass and drag physics across the field that react wonderfully to slapping, slashing, and running impacts.
+- **Flawless Thread-Safe GSAP Integration**: Confirmed all keyframe weapon animations, blowbacks, and trigger-pull sways execute cleanly within the modern, contextsafe `useGSAP` hook scope.

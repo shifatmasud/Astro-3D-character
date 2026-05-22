@@ -62,6 +62,7 @@ export const GameControls = React.memo(({
   // Handle hotkeys & slow-mo trigger holding
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
       const key = e.key.toLowerCase();
       
       // Stop weapon wheel keys from scrolling page
