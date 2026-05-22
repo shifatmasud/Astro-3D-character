@@ -211,17 +211,32 @@ export const Character = React.memo(({
                 </group>
             </group>
 
-            {/* Visor */}
-            <RoundedBox args={[0.4, 0.25, 0.15]} radius={0.08} smoothness={4} position={[0, 0.2, 0.3]}>
-              <meshPhysicalMaterial 
-                color={visorColor} 
-                roughness={0.1} 
-                metalness={0.0} 
-                transmission={0.8} 
-                thickness={0.5} 
-                transparent 
-              />
-            </RoundedBox>
+            {/* Visor - Layered High-Fidelity Among Us Style */}
+            <group position={[0, 0.2, 0.345]}>
+              {/* Outer stroke/border frame (matte dark grey/black) */}
+              <RoundedBox args={[0.43, 0.26, 0.08]} radius={0.09} smoothness={4} position={[0, 0, 0]}>
+                <meshStandardMaterial 
+                  color="#0f172a" 
+                  roughness={0.7} 
+                  metalness={0.1} 
+                />
+              </RoundedBox>
+
+              {/* Inner glowing visor glass (cyan/sky blue) */}
+              <RoundedBox args={[0.395, 0.225, 0.085]} radius={0.075} smoothness={4} position={[0, 0, 0.015]}>
+                <meshPhysicalMaterial 
+                  color={visorColor} 
+                  roughness={0.12} 
+                  metalness={0.12} 
+                  transmission={0.4} 
+                  thickness={0.1}
+                  transparent
+                  opacity={0.9}
+                  emissive={visorColor}
+                  emissiveIntensity={0.25}
+                />
+              </RoundedBox>
+            </group>
         </group>
 
         {/* Floating Hands with red 5-finger wrists */}

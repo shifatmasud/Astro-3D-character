@@ -14,6 +14,8 @@ A log of all tasks, ideas, and progress for this project.
 
 ## Done
 
+-   **[2026-05-22 12:05]**: Removed the white cartoon reflection pill and converted the inner visor glass into an optimized, hardware-friendly `MeshPhysicalMaterial` tailored for smooth performance on lower-end devices.
+-   **[2026-05-22 12:02]**: Engineered a pristine layered Among Us visor component on the `Character` body. Constructed an outer dark glass bezel frame to add cartoon contour outlines, nested a bright emissive cyan glass visor interior, and topped it with a semi-opaque diagonal glossy white highlight reflection pill completely free of Z-fighting/sinking.
 -   **[2026-05-22 09:29]**: Perfected hand-rotation setup inside `Character.tsx`. Rotated flat 5-finger Among Us-style hands outward from the body (Z-rotation +/- Math.PI / 4.5) to look expressive and clean, mirroring the vector character designs perfectly.
 -   **[2026-05-22 09:07]**: Refactored the floating hands into an elegant, forearm-free "Among Us" / cartoon glove style. The design utilizes soft, high-fidelity chubby capsules/spheres for the main palm and 5 highly responsive red fingers with dual-phalanx skeletal flex animations that rotate and bob in a wave-like pattern weightlessly. Deleted other unused static hands from Playground scene.
 -   **[2026-05-22 08:56]**: Redesigned player model's floating hands with high-fidelity, organic 5-finger floating wrists. Rendered in polished vibrant red body color variants with skeletal multi-joint idle flexion to look highly fluid and realistic, completely replacing old basic sphere/box segments.
