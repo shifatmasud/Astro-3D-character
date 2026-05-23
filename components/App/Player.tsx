@@ -17,9 +17,6 @@ export interface PlayerProps {
   mvX: MotionValue<number>;
   mvY: MotionValue<number>;
   mvJump: MotionValue<number>;
-  mvHandRotation?: MotionValue<number>; // Slider input (0 to 1)
-  mvHandRotationX?: MotionValue<number>;
-  mvHandRotationY?: MotionValue<number>;
   onColorChange?: (color: string) => void;
   bodyColor?: string;
   visorColor?: string;
@@ -82,9 +79,6 @@ interface FloatingHandProps {
   position?: [number, number, number];
   gripType: 'open' | 'fist' | 'pistol' | 'knife';
   isShooting?: boolean;
-  handRotation?: number; // 0 to 1 normalized rotation (0 to 2PI)
-  handRotationX?: number;
-  handRotationY?: number;
   children?: React.ReactNode;
 }
 
@@ -95,9 +89,6 @@ const FloatingHand = ({
   position = [0, 0, 0],
   gripType,
   isShooting = false,
-  handRotation = 0,
-  handRotationX = 0,
-  handRotationY = 0,
   children
 }: FloatingHandProps) => {
   const handRef = useRef<THREE.Group>(null);
@@ -168,7 +159,7 @@ const FloatingHand = ({
 
     // Default resting values (Bottom-left/Top-right style cupped hand shapes)
     let targetThumbX = 0.1;
-    let targetThumbY = (0.16 + Math.sin(t * 1.5) * 0.02) * sideSign;
+    let targetThumbY = (Math.PI + 0.16 + Math.sin(t * 1.5) * 0.02) * sideSign;
     let targetThumbZ = (-Math.PI / 4.6 - indexBreathe * 0.25) * sideSign;
     let targetIndexX = indexBreathe;
     let targetMiddleX = middleBreathe;
@@ -185,7 +176,7 @@ const FloatingHand = ({
     if (gripType === 'fist') {
       // Tight clenched fist (Top-left image): base + tips wrap 90+ degrees with high-frequency adrenaline muscle flex/tremor
       const tremor = 1.0 + Math.sin(t * 16) * 0.012;
-      targetThumbY = 0.22 * sideSign * tremor;
+      targetThumbY = (Math.PI + 0.22) * sideSign * tremor;
       targetThumbZ = -1.28 * sideSign;
       targetIndexX = 1.48 * tremor;
       targetMiddleX = 1.54 * tremor;
@@ -206,7 +197,7 @@ const FloatingHand = ({
       const squeezeTip = isShooting ? 0.55 : 0.05; // Straightened tip
 
       targetThumbX = 0.15 * flex; // Simplified: No longer counter-rotating against hand pitch
-      targetThumbY = 0.45 * sideSign * flex; // Splay out slightly
+      targetThumbY = (Math.PI + 0.45) * sideSign * flex; // Splay out slightly
       targetThumbZ = -0.1 * sideSign; // Natural splay
       targetIndexX = squeeze * flex;
       targetMiddleX = 1.6 * flex; // Tighter grip on remaining fingers
@@ -221,7 +212,7 @@ const FloatingHand = ({
     } else if (gripType === 'knife') {
       // Confident grip wrapping firm handle coordinates (Bottom-right grasping claw)
       const flex = 1.0 + Math.sin(t * 18) * 0.008;
-      targetThumbY = 0.26 * sideSign * flex;
+      targetThumbY = (Math.PI + 0.26) * sideSign * flex;
       targetThumbZ = -1.18 * sideSign;
       targetIndexX = 1.42 * flex;
       targetMiddleX = 1.42 * flex;
@@ -278,78 +269,75 @@ const FloatingHand = ({
   return (
     <group ref={handRef} position={position} scale={scale}>
       <group ref={wristRef}>
-        {/* WEAPONS: Stay in the clean wrist coordinate system (Up is Up) */}
+        {/* Palm as a cute thick globular bubble */}
+        <RoundedBox args={[0.16, 0.16, 0.08]} radius={0.045} smoothness={5} position={[0, 0.04, 0]}>
+          <meshStandardMaterial 
+            color={color} 
+            roughness={0.35} 
+            metalness={0.15} 
+          />
+        </RoundedBox>
+
+        {/* Nested attached weapons */}
         {children}
 
-        {/* HAND MESHES: Rotated per user preference (Default 180 flip + Sliders) */}
-        <group rotation={[handRotationX * Math.PI * 2, handRotationY * Math.PI * 2, (Math.PI) + (handRotation * Math.PI * 2)]}>
-          {/* Palm as a cute thick globular bubble */}
-          <RoundedBox args={[0.16, 0.16, 0.08]} radius={0.045} smoothness={5} position={[0, 0.04, 0]}>
-            <meshStandardMaterial 
-              color={color} 
-              roughness={0.35} 
-              metalness={0.15} 
-            />
-          </RoundedBox>
-
-          {/* 1. Thumb */}
-          <group 
-            ref={thumbBaseRef} 
-            position={[isLeft ? 0.075 : -0.075, 0.015, 0.005]} 
-            rotation={[0.1, 0.1 * sideSign, -Math.PI / 4 * sideSign]}
-          >
-            <ChubbyPhalanx length={0.045} radius={0.025} color={color} />
-            <group ref={thumbTipRef} position={[0, 0.045, 0]} rotation={[0, 0, -0.1 * sideSign]}>
-              <ChubbyPhalanx length={0.035} radius={0.023} color={color} />
-            </group>
+        {/* 1. Thumb */}
+        <group 
+          ref={thumbBaseRef} 
+          position={[isLeft ? 0.075 : -0.075, 0.015, 0.005]} 
+          rotation={[0.1, 0.1 * sideSign, -Math.PI / 4 * sideSign]}
+        >
+          <ChubbyPhalanx length={0.045} radius={0.025} color={color} />
+          <group ref={thumbTipRef} position={[0, 0.045, 0]} rotation={[0, 0, -0.1 * sideSign]}>
+            <ChubbyPhalanx length={0.035} radius={0.023} color={color} />
           </group>
+        </group>
 
-          {/* 2. Index */}
-          <group 
-            ref={indexBaseRef} 
-            position={[isLeft ? 0.055 : -0.055, 0.095, 0.0]} 
-            rotation={[0, 0, 0.12 * sideSign]}
-          >
-            <ChubbyPhalanx length={0.045} radius={0.023} color={color} />
-            <group ref={indexTipRef} position={[0, 0.045, 0]} rotation={[0.2, 0, 0]}>
-              <ChubbyPhalanx length={0.035} radius={0.021} color={color} />
-            </group>
+        {/* 2. Index */}
+        <group 
+          ref={indexBaseRef} 
+          position={[isLeft ? 0.055 : -0.055, 0.095, 0.0]} 
+          rotation={[0, 0, 0.12 * sideSign]}
+        >
+          <ChubbyPhalanx length={0.045} radius={0.023} color={color} />
+          <group ref={indexTipRef} position={[0, 0.045, 0]} rotation={[0.2, 0, 0]}>
+            <ChubbyPhalanx length={0.035} radius={0.021} color={color} />
           </group>
+        </group>
 
-          {/* 3. Middle */}
-          <group 
-            ref={middleBaseRef} 
-            position={[isLeft ? 0.018 : -0.018, 0.105, 0.0]} 
-            rotation={[0, 0, 0]}
-          >
-            <ChubbyPhalanx length={0.055} radius={0.024} color={color} />
-            <group ref={middleTipRef} position={[0, 0.055, 0]} rotation={[0.2, 0, 0]}>
-              <ChubbyPhalanx length={0.04} radius={0.022} color={color} />
-            </group>
+        {/* 3. Middle */}
+        <group 
+          ref={middleBaseRef} 
+          position={[isLeft ? 0.018 : -0.018, 0.105, 0.0]} 
+          rotation={[0, 0, 0]}
+        >
+          <ChubbyPhalanx length={0.055} radius={0.024} color={color} />
+          <group ref={middleTipRef} position={[0, 0.055, 0]} rotation={[0.2, 0, 0]}>
+            <ChubbyPhalanx length={0.04} radius={0.022} color={color} />
           </group>
+        </group>
 
-          {/* 4. Ring */}
-          <group 
-            ref={ringBaseRef} 
-            position={[isLeft ? -0.018 : 0.018, 0.10, 0.0]} 
-            rotation={[0, 0, -0.08 * sideSign]}
-          >
-            <ChubbyPhalanx length={0.05} radius={0.023} color={color} />
-            <group ref={ringTipRef} position={[0, 0.05, 0]} rotation={[0.2, 0, 0]}>
-              <ChubbyPhalanx length={0.038} radius={0.021} color={color} />
-            </group>
+        {/* 4. Ring */}
+        <group 
+          ref={ringBaseRef} 
+          position={[isLeft ? -0.018 : 0.018, 0.10, 0.0]} 
+          rotation={[0, 0, -0.08 * sideSign]}
+        >
+          <ChubbyPhalanx length={0.05} radius={0.023} color={color} />
+          <group ref={ringTipRef} position={[0, 0.05, 0]} rotation={[0.2, 0, 0]}>
+            <ChubbyPhalanx length={0.038} radius={0.021} color={color} />
           </group>
+        </group>
 
-          {/* 5. Pinky */}
-          <group 
-            ref={pinkyBaseRef} 
-            position={[isLeft ? -0.055 : 0.055, 0.08, 0.0]} 
-            rotation={[0, 0, -0.2 * sideSign]}
-          >
-            <ChubbyPhalanx length={0.042} radius={0.021} color={color} />
-            <group ref={pinkyTipRef} position={[0, 0.042, 0]} rotation={[0.2, 0, 0]}>
-              <ChubbyPhalanx length={0.032} radius={0.019} color={color} />
-            </group>
+        {/* 5. Pinky */}
+        <group 
+          ref={pinkyBaseRef} 
+          position={[isLeft ? -0.055 : 0.055, 0.08, 0.0]} 
+          rotation={[0, 0, -0.2 * sideSign]}
+        >
+          <ChubbyPhalanx length={0.042} radius={0.021} color={color} />
+          <group ref={pinkyTipRef} position={[0, 0.042, 0]} rotation={[0.2, 0, 0]}>
+            <ChubbyPhalanx length={0.032} radius={0.019} color={color} />
           </group>
         </group>
       </group>
@@ -748,9 +736,6 @@ export const Player = React.memo(({
   mvX,
   mvY,
   mvJump,
-  mvHandRotation,
-  mvHandRotationX,
-  mvHandRotationY,
   bodyColor = "#ef4444",
   visorColor = "#7dd3fc",
   position = [0, 0, 0],
@@ -795,16 +780,14 @@ export const Player = React.memo(({
   const [leftSlashActive, setLeftSlashActive] = useState(false);
   const [rightSlashActive, setRightSlashActive] = useState(false);
   const [isClenched, setIsClenched] = useState<'none' | 'left' | 'right'>('none');
-  const [extraRotation, setExtraRotation] = useState(0);
-  const [extraRotationX, setExtraRotationX] = useState(0);
-  const [extraRotationY, setExtraRotationY] = useState(0);
+
   const cameraShakeVel = useRef(0);
 
   // Elastic animation spring trackers for smooth weight & landing dynamics (Initialized to relaxed standing neutral pose to prevent startup snap)
   const handLeftPosActual = useRef(new THREE.Vector3(-0.46, 0.58, 0.05));
   const handRightPosActual = useRef(new THREE.Vector3(0.46, 0.58, 0.05));
-  const handLeftRotActual = useRef(new THREE.Vector3(0, -1.2, 1.1));
-  const handRightRotActual = useRef(new THREE.Vector3(0, 1.2, -1.1));
+  const handLeftRotActual = useRef(new THREE.Vector3(Math.PI, -1.2, 1.1));
+  const handRightRotActual = useRef(new THREE.Vector3(Math.PI, 1.2, -1.1));
 
   // Breathing & walk-sway momentum
   const cumulativeTime = useRef(0);
@@ -1037,12 +1020,6 @@ export const Player = React.memo(({
     const x = mvX.get();
     const y = mvY.get();
     const jump = mvJump.get() > 0.5;
-    const hRot = mvHandRotation ? mvHandRotation.get() : 0;
-    const hRotX = mvHandRotationX ? mvHandRotationX.get() : 0;
-    const hRotY = mvHandRotationY ? mvHandRotationY.get() : 0;
-    setExtraRotation(hRot);
-    setExtraRotationX(hRotX);
-    setExtraRotationY(hRotY);
     const { camera } = state;
 
     // Get current position & velocity from Rapier rigidbody
@@ -1124,7 +1101,7 @@ export const Player = React.memo(({
             0.05 - smoothSwingZ.current * 0.95
           );
           targetLRot.set(
-            pitchL * 1.1, 
+            Math.PI + pitchL * 1.1, 
             -1.2 + yawL * 0.4, 
             1.1 + smoothSwingY.current * 0.15
           );
@@ -1135,7 +1112,7 @@ export const Player = React.memo(({
             0.05 + smoothSwingZ.current * 0.95
           );
           targetRRot.set(
-            -pitchL * 1.1, 
+            Math.PI - pitchL * 1.1, 
             1.2 - yawL * 0.4, 
             -1.1 - smoothSwingY.current * 0.15
           );
@@ -1335,9 +1312,6 @@ export const Player = React.memo(({
               position={[0, 0, 0]} 
               gripType={getGripType(true)} 
               isShooting={leftFlashActive}
-              handRotation={extraRotation}
-              handRotationX={extraRotationX}
-              handRotationY={extraRotationY}
             >
               {/* Always keep mounted for seamless smooth slide of weapons on draw/grab */}
               <KnifeAttachment isLeft={true} active={currentWeapon === 'knife'} />
@@ -1371,9 +1345,6 @@ export const Player = React.memo(({
               position={[0, 0, 0]} 
               gripType={getGripType(false)} 
               isShooting={rightFlashActive}
-              handRotation={extraRotation}
-              handRotationX={extraRotationX}
-              handRotationY={extraRotationY}
             >
               {/* Always keep mounted for seamless smooth slide of weapons on draw/grab */}
               <KnifeAttachment isLeft={false} active={currentWeapon === 'knife'} />

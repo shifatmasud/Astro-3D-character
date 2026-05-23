@@ -277,3 +277,13 @@ Imagine you're building with LEGOs. This project gives you a super organized box
 - **Continuous Jetpack Thrust**: Configured the rocket-booster thrust to apply dynamic vertical velocity up to a cap when space is pressed/held, smoothly integrating into standard gravity falling states.
 - **Static Ground Colliders & Obstacles Playground**: Converted the flat green arena to use a fixed `<RigidBody>` with a massive `<CuboidCollider>` to prevent falling or clipping outside the map. Scattered 45 colorful dynamic toy props (bouncy spheres and stacked toy blocks) with true mass and drag physics across the field that react wonderfully to slapping, slashing, and running impacts.
 - **Flawless Thread-Safe GSAP Integration**: Confirmed all keyframe weapon animations, blowbacks, and trigger-pull sways execute cleanly within the modern, contextsafe `useGSAP` hook scope.
+
+---
+
+## 🖐️ Session 18 Update: Corrected Thumb Anatomy & Inverted Y-Helix
+
+### Summary
+- **Corrected Thumb Orientation**: Resolved the issue where the thumb was appearing on the "bottom" of the hand in neutral and item-equipped states.
+- **Local Y-Axis Heliocentric Fix**: Applied a 180° local Y rotation (`Math.PI`) to all thumb animation targets (`targetThumbY`). This flips the thumb segment's coordinate frame so it correctly sits on the "top" of the palm relative to the camera and standard human anatomy.
+- **Global Grip Consistency**: Synchronized the flip across all skeletal states including 'open', 'fist', 'pistol', and 'knife' grips to ensure physiological accuracy during weapon handling.
+
