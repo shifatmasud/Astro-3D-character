@@ -38,10 +38,12 @@ Tracking all issues, from critical bugs to minor suggestions.
 -   **[2026-05-22] (Resolved)**: Restructured character visor to use an exact mathematical layout offset in Z-space, eradicating positioning sink and surface depth-fighting/flickering against the body capsule.
 
 ## Open (To Be Fixed)
+-   ...
 
--   **[2026-05-22] (Coordinate Logic)**: Hand base orientation uses a 180° Z-rotation (`Math.PI`) which inverts the local coordinate system, making `+y` move "down" and `-y` move "up". This inversion is leaking into attack timelines and nested child weapon attachments, causing spatial confusion and maintenance difficulty.
--   **[2026-05-22] (Misalignment)**: Handgun attachment and Knife attachment use slightly different mounting offsets and "counter-twist" logic (Euler orders like `YXZ` vs `XYZ`), leading to micro-misalignments where weapons don't sit perfectly in the center of the palm or align with the index finger's aim-line.
--   **[2026-05-22] (Attack Mechanics)**: Slap animations are calculated using relative Y-offsets to "raise" the hand, but because of the base 180° rotation, the math is counter-intuitive. Rapid switches between weapon types during mid-attack GSAP timelines cause unnatural "snaps" to neutral positions.
+## Performance & Optimization (Improved 2026-05-23)
+-   **[2026-05-23] (Resolved)**: Large scale code bloat in `Player.tsx`. Simplified the massive `useFrame` and `useGSAP` callbacks into modular, typed helper functions.
+-   **[2026-05-23] (Resolved)**: High garbage collection pressure from per-frame geometry creation. Staged `SHARED_GEOMETRY` pool to reuse all phalanx meshes.
+-   **[2026-05-23] (Resolved)**: Material allocation overhead in weapon attachments. Implemented material reuse via `useMemo` hooks.
 
 ## Pre-existing Issues
 

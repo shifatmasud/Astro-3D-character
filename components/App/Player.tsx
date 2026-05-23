@@ -17,7 +17,6 @@ export interface PlayerProps {
   mvX: MotionValue<number>;
   mvY: MotionValue<number>;
   mvJump: MotionValue<number>;
-  onColorChange?: (color: string) => void;
   bodyColor?: string;
   visorColor?: string;
   position?: [number, number, number];
@@ -27,6 +26,31 @@ export interface PlayerProps {
   attackTrigger?: number;
   weaponWheelOpen?: boolean;
 }
+
+// --- CONSTANTS & TYPES ---
+const ANIM_TIMINGS = {
+  SLAP_WIND_UP: 0.10,
+  SLAP_IMPACT: 0.08,
+  SLAP_RETURN: 0.22,
+  KNIFE_WIND_UP: 0.10,
+  KNIFE_SLASH: 0.10,
+  KNIFE_RETURN: 0.25,
+  GUN_RECOIL: 0.04,
+  GUN_SETTLE: 0.18,
+  VFX_DURATION: 160,
+  FLASH_DURATION: 55,
+  TRACER_DURATION: 90,
+  WALK_SPEED: 9.5,
+  BREATH_FREQ: 2.4,
+};
+
+type WeaponType = 'slap' | 'knife' | 'handgun';
+type GripType = 'open' | 'fist' | 'pistol' | 'knife';
+
+const SHARED_GEOMETRY = {
+  sphere: new THREE.SphereGeometry(1, 16, 16),
+  cylinder: new THREE.CylinderGeometry(1, 1, 1, 16),
+};
 
 // --- HELPER PHALANX COMPONENT (Fat Chubby Cartoon Bones) ---
 const ChubbyPhalanx = ({ 
@@ -39,37 +63,34 @@ const ChubbyPhalanx = ({
   radius: number; 
   color: string; 
   rotation?: [number, number, number];
-}) => (
-  <group rotation={rotation}>
-    {/* Smooth joint knuckle */}
-    <mesh>
-      <sphereGeometry args={[radius * 1.1, 16, 16]} />
-      <meshStandardMaterial 
-        color={color} 
-        roughness={0.4} 
-        metalness={0.15} 
+}) => {
+  const material = React.useMemo(() => new THREE.MeshStandardMaterial({ 
+    color, 
+    roughness: 0.4, 
+    metalness: 0.15 
+  }), [color]);
+
+  return (
+    <group rotation={rotation}>
+      {/* Smooth joint knuckle */}
+      <mesh geometry={SHARED_GEOMETRY.sphere} scale={radius * 1.1} material={material} />
+      {/* Chubby bone segment */}
+      <mesh 
+        geometry={SHARED_GEOMETRY.cylinder} 
+        position={[0, length / 2, 0]} 
+        scale={[radius * 0.95, length, radius * 0.95]} 
+        material={material}
       />
-    </mesh>
-    {/* Chubby bone segment */}
-    <mesh position={[0, length / 2, 0]}>
-      <cylinderGeometry args={[radius * 0.95, radius, length, 16]} />
-      <meshStandardMaterial 
-        color={color} 
-        roughness={0.4} 
-        metalness={0.1} 
+      {/* Round finger tip */}
+      <mesh 
+        geometry={SHARED_GEOMETRY.sphere} 
+        position={[0, length, 0]} 
+        scale={radius * 0.95} 
+        material={material}
       />
-    </mesh>
-    {/* Round finger tip */}
-    <mesh position={[0, length, 0]}>
-      <sphereGeometry args={[radius * 0.95, 16, 16]} />
-      <meshStandardMaterial 
-        color={color} 
-        roughness={0.4} 
-        metalness={0.15} 
-      />
-    </mesh>
-  </group>
-);
+    </group>
+  );
+};
 
 // --- HAND SUB-COMPONENT WITH SKELETON ROTATION CALCULATIONS ---
 interface FloatingHandProps {
@@ -515,152 +536,91 @@ const HandgunAttachment = ({
   const shellRot = useRef(new THREE.Vector3());
   const shellRotVel = useRef(new THREE.Vector3());
 
+  const materials = React.useMemo(() => ({
+    frame: new THREE.MeshStandardMaterial({ color: "#27272a", roughness: 0.45, metalness: 0.88 }),
+    gold: new THREE.MeshStandardMaterial({ color: "#ca8a04", roughness: 0.18, metalness: 0.96 }),
+    dark: new THREE.MeshStandardMaterial({ color: "#18181b", roughness: 0.35, metalness: 0.92 }),
+    slide: new THREE.MeshStandardMaterial({ color: "#cbd5e1", roughness: 0.15, metalness: 0.98 }),
+    hammer: new THREE.MeshStandardMaterial({ color: "#d4d4d8", roughness: 0.1, metalness: 0.98 }),
+    barrel: new THREE.MeshStandardMaterial({ color: "#71717a", roughness: 0.08, metalness: 0.98 }),
+    brassSymbol: new THREE.MeshStandardMaterial({ color: "#eab308", metalness: 0.96, roughness: 0.12 }),
+  }), []);
+
   useFrame((state, delta) => {
     const target = active ? 1 : 0;
     transitionVal.current = THREE.MathUtils.lerp(transitionVal.current, target, 1 - Math.exp(-15 * delta));
     
-      if (groupRef.current) {
-        // Scale-in to eliminate snaps on grab
-        groupRef.current.scale.setScalar(transitionVal.current);
-        
-        // Animate position: slide up from palm bottom
-        groupRef.current.position.y = THREE.MathUtils.lerp(-0.05, 0.045, transitionVal.current);
-        groupRef.current.position.z = THREE.MathUtils.lerp(0.01, -0.025, transitionVal.current);
-        
-        // Corrected rotation order to 'YXZ' for perfect forward projection
-        groupRef.current.rotation.order = 'YXZ';
-        groupRef.current.rotation.x = -Math.PI / 2;
-        groupRef.current.rotation.y = isLeft ? -Math.PI / 2 : Math.PI / 2;
-        groupRef.current.rotation.z = 0;
-      }
-  
-      // Capture exact frame in which weapon shoots to trigger blowback recoil & shell ejection
-      if (flashActive && !lastFlashActive.current) {
-        slideZ.current = -0.055; // Bolt slide moves back
-        triggerRot.current = -0.32; // Trigger pulls back
-        hammerRot.current = 0.45; // Hammer rotates back
-        
-        // Eject a shiny golden hollow bullet casing out of ejection port
-        shellActive.current = true;
-        shellPos.current.set(isLeft ? -0.012 : 0.012, 0.048, 0.038);
-        shellVel.current.set(
-          (isLeft ? -0.35 : 0.35) + (Math.random() - 0.5) * 0.1,
-          0.52 + Math.random() * 0.15,
-          -0.15 - Math.random() * 0.15
-        );
-        shellRot.current.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-        shellRotVel.current.set(12 + Math.random() * 8, 12 + Math.random() * 8, 12 + Math.random() * 8);
-      }
-      lastFlashActive.current = flashActive;
-  
-      // Decay recoil offsets smoothly back to normal
-      slideZ.current = THREE.MathUtils.lerp(slideZ.current, 0, 1 - Math.exp(-18 * delta));
-      triggerRot.current = THREE.MathUtils.lerp(triggerRot.current, 0, 1 - Math.exp(-22 * delta));
-      hammerRot.current = THREE.MathUtils.lerp(hammerRot.current, -0.18, 1 - Math.exp(-6 * delta));
-  
-      // Casing falling gravity updates
-      if (shellActive.current) {
-        shellVel.current.y -= 9.8 * delta * 0.65;
-        shellPos.current.addScaledVector(shellVel.current, delta);
-        shellRot.current.addScaledVector(shellRotVel.current, delta);
-        if (shellPos.current.y < -0.35) {
-          shellActive.current = false;
-        }
-      }
-    });
-  
-    return (
-      <group ref={groupRef} rotation={[-Math.PI / 2, 0, 0]}>
+    if (groupRef.current) {
+      groupRef.current.scale.setScalar(transitionVal.current);
+      groupRef.current.position.y = THREE.MathUtils.lerp(-0.05, 0.045, transitionVal.current);
+      groupRef.current.position.z = THREE.MathUtils.lerp(0.01, -0.025, transitionVal.current);
       
-      {/* 1. FRAME & CARBO-STEEL GRIP */}
+      groupRef.current.rotation.order = 'YXZ';
+      groupRef.current.rotation.x = -Math.PI / 2;
+      groupRef.current.rotation.y = isLeft ? -Math.PI / 2 : Math.PI / 2;
+      groupRef.current.rotation.z = 0;
+    }
+
+    if (flashActive && !lastFlashActive.current) {
+      slideZ.current = -0.055;
+      triggerRot.current = -0.32;
+      hammerRot.current = 0.45;
+      
+      shellActive.current = true;
+      shellPos.current.set(isLeft ? -0.012 : 0.012, 0.048, 0.038);
+      shellVel.current.set(
+        (isLeft ? -0.35 : 0.35) + (Math.random() - 0.5) * 0.1,
+        0.52 + Math.random() * 0.15,
+        -0.15 - Math.random() * 0.15
+      );
+      shellRot.current.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      shellRotVel.current.set(12 + Math.random() * 8, 12 + Math.random() * 8, 12 + Math.random() * 8);
+    }
+    lastFlashActive.current = flashActive;
+
+    slideZ.current = THREE.MathUtils.lerp(slideZ.current, 0, 1 - Math.exp(-18 * delta));
+    triggerRot.current = THREE.MathUtils.lerp(triggerRot.current, 0, 1 - Math.exp(-22 * delta));
+    hammerRot.current = THREE.MathUtils.lerp(hammerRot.current, -0.18, 1 - Math.exp(-6 * delta));
+
+    if (shellActive.current) {
+      shellVel.current.y -= 9.8 * delta * 0.65;
+      shellPos.current.addScaledVector(shellVel.current, delta);
+      shellRot.current.addScaledVector(shellRotVel.current, delta);
+      if (shellPos.current.y < -0.35) shellActive.current = false;
+    }
+  });
+
+  const serrationOffsets = React.useMemo(() => [-0.04, -0.05, -0.06], []);
+
+  return (
+    <group ref={groupRef} rotation={[-Math.PI / 2, 0, 0]}>
       <group>
-        {/* Handle main block */}
-        <Box args={[0.032, 0.09, 0.052]} position={[0, 0, 0]} rotation={[-Math.PI / 8, 0, 0]}>
-          <meshStandardMaterial 
-            color="#27272a" 
-            roughness={0.45} 
-            metalness={0.88}
-          />
-        </Box>
-        
-        {/* Luxurious textured metal panels on outer sides (Gold Core Accents) */}
-        <Box args={[0.034, 0.065, 0.035]} position={[0, -0.01, 0.005]} rotation={[-Math.PI / 8, 0, 0]}>
-          <meshStandardMaterial 
-            color="#ca8a04" 
-            roughness={0.18} 
-            metalness={0.96} 
-          />
-        </Box>
-        
-        {/* Trigger guard frame loop */}
-        <Box args={[0.012, 0.008, 0.045]} position={[0, 0.002, 0.033]}>
-          <meshStandardMaterial 
-            color="#18181b" 
-            roughness={0.35} 
-            metalness={0.92} 
-          />
-        </Box>
-        <Box args={[0.012, 0.032, 0.008]} position={[0, 0.017, 0.053]}>
-          <meshStandardMaterial 
-            color="#18181b" 
-            roughness={0.35} 
-            metalness={0.92} 
-          />
-        </Box>
+        <Box args={[0.032, 0.09, 0.052]} position={[0, 0, 0]} rotation={[-Math.PI / 8, 0, 0]} material={materials.frame} />
+        <Box args={[0.034, 0.065, 0.035]} position={[0, -0.01, 0.005]} rotation={[-Math.PI / 8, 0, 0]} material={materials.gold} />
+        <Box args={[0.012, 0.008, 0.045]} position={[0, 0.002, 0.033]} material={materials.dark} />
+        <Box args={[0.012, 0.032, 0.008]} position={[0, 0.017, 0.053]} material={materials.dark} />
       </group>
- 
-      {/* 2. SKELETONIZED GOLD TRIGGER */}
+
       <group position={[0, 0.017, 0.033]} rotation={[THREE.MathUtils.lerp(Math.PI / 10, -Math.PI / 16, -triggerRot.current), 0, 0]}>
-        <Box args={[0.008, 0.02, 0.012]} position={[0, 0, 0]}>
-          <meshStandardMaterial 
-            color="#ca8a04" 
-            roughness={0.12} 
-            metalness={0.98} 
-          />
-        </Box>
+        <Box args={[0.008, 0.02, 0.012]} position={[0, 0, 0]} material={materials.gold} />
       </group>
- 
-      {/* 3. COCKING HAMMER */}
+
       <group position={[0, 0.052, -0.05]} rotation={[THREE.MathUtils.lerp(0.5, -0.5, -hammerRot.current), 0, 0]}>
-        <Cylinder args={[0.007, 0.007, 0.012, 8]} rotation={[0, 0, Math.PI / 2]}>
-          <meshStandardMaterial 
-            color="#d4d4d8" 
-            roughness={0.1} 
-            metalness={0.98} 
-          />
-        </Cylinder>
+        <Cylinder args={[0.007, 0.007, 0.012, 8]} rotation={[0, 0, Math.PI / 2]} material={materials.hammer} />
       </group>
- 
-      {/* 4. RECOILING SLIDE ASSEMBLY (Pure Titanium Silver finish slide) */}
+
       <group position={[0, 0.047, 0.033 + slideZ.current]}>
-        <Box args={[0.042, 0.045, 0.18]} position={[0, 0, 0]}>
-          <meshStandardMaterial 
-            color="#cbd5e1" 
-            roughness={0.15} 
-            metalness={0.98} 
-          />
-        </Box>
-        
-        {/* Rear slide serrations panels */}
-        {[-0.04, -0.05, -0.06].map((offsetZ, i) => (
+        <Box args={[0.042, 0.045, 0.18]} position={[0, 0, 0]} material={materials.slide} />
+        {serrationOffsets.map((offsetZ, i) => (
           <group key={i}>
-            <Box args={[0.001, 0.03, 0.003]} position={[-0.0215, 0, offsetZ]}>
-              <meshStandardMaterial color="#27272a" roughness={0.4} metalness={0.8} />
-            </Box>
-            <Box args={[0.001, 0.03, 0.003]} position={[0.0215, 0, offsetZ]}>
-              <meshStandardMaterial color="#27272a" roughness={0.4} metalness={0.8} />
-            </Box>
+            <Box args={[0.001, 0.03, 0.003]} position={[-0.0215, 0, offsetZ]} material={materials.frame} />
+            <Box args={[0.001, 0.03, 0.003]} position={[0.0215, 0, offsetZ]} material={materials.frame} />
           </group>
         ))}
- 
-        {/* Tactical Fiber-Optic Sights */}
-        <Box args={[0.008, 0.01, 0.012]} position={[0, 0.026, 0.08]}>
-          <meshStandardMaterial color="#18181b" roughness={0.5} metalness={0.9} />
-        </Box>
+
+        <Box args={[0.008, 0.01, 0.012]} position={[0, 0.026, 0.08]} material={materials.dark} />
         <group position={[0, 0.026, -0.078]}>
-          <Box args={[0.022, 0.008, 0.008]} position={[0, 0, 0]}>
-            <meshStandardMaterial color="#18181b" roughness={0.5} metalness={0.9} />
-          </Box>
+          <Box args={[0.022, 0.008, 0.008]} position={[0, 0, 0]} material={materials.dark} />
           <Sphere args={[0.002, 6, 6]} position={[-0.007, 0.004, 0.001]}>
             <meshBasicMaterial color="#22c55e" />
           </Sphere>
@@ -669,41 +629,25 @@ const HandgunAttachment = ({
           </Sphere>
         </group>
       </group>
- 
-      {/* 5. HEAVY POLISHED STEEL INNER BARREL */}
+
       <group position={[0, 0.047, 0.128]}>
-        <Cylinder args={[0.014, 0.014, 0.03, 12]} rotation={[Math.PI / 2, 0, 0]}>
-          <meshStandardMaterial 
-            color="#71717a" 
-            roughness={0.08} 
-            metalness={0.98} 
-          />
-        </Cylinder>
+        <Cylinder args={[0.014, 0.014, 0.03, 12]} rotation={[Math.PI / 2, 0, 0]} material={materials.barrel} />
         <Cylinder args={[0.008, 0.008, 0.002, 8]} position={[0, 0.001, 0.015]} rotation={[Math.PI / 2, 0, 0]}>
           <meshBasicMaterial color="#000000" />
         </Cylinder>
       </group>
 
-      {/* 6. GOLD SHELL PARTICLE FLYOUT */}
       {shellActive.current && (
         <group position={shellPos.current} rotation={[shellRot.current.x, shellRot.current.y, shellRot.current.z]}>
-          <Cylinder args={[0.006, 0.006, 0.02, 8]} rotation={[Math.PI / 2, 0, 0]}>
-            <meshStandardMaterial 
-              color="#eab308" 
-              metalness={0.96} 
-              roughness={0.12} 
-            />
-          </Cylinder>
+          <Cylinder args={[0.006, 0.006, 0.02, 8]} rotation={[Math.PI / 2, 0, 0]} material={materials.brassSymbol} />
         </group>
       )}
 
-      {/* 7. LASER GUIDE LINE */}
       <mesh position={[0, 0.015, 0.9]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.004, 0.004, 1.6]} />
         <meshBasicMaterial color="#ef4444" transparent opacity={0.65} />
       </mesh>
 
-      {/* 8. GUN FIRE FLASH SPARKS */}
       {flashActive && (
         <mesh position={[0, 0.035, 0.18]} rotation={[0, 0, Math.random() * Math.PI]}>
           <planeGeometry args={[0.45, 0.45]} />
@@ -711,7 +655,6 @@ const HandgunAttachment = ({
         </mesh>
       )}
 
-      {/* 9. BULLET TRACER PATH */}
       {tracerActive && (
         <mesh position={[0, 0.03, 10]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.015, 0.015, 20]} />
@@ -801,219 +744,228 @@ export const Player = React.memo(({
   const lastLegSwingSignCheck = useRef(0);
 
   // useGSAP orchestration for attacks, recoils, slashes and gun actions
+  const executeSlap = (slapLeft: boolean) => {
+    const targetOffsetRef = slapLeft ? leftHandOffsetGroupRef.current : rightHandOffsetGroupRef.current;
+    const activeTimeline = slapLeft ? leftTimelineRef : rightTimelineRef;
+
+    if (!targetOffsetRef) return;
+    
+    setIsClenched(slapLeft ? 'left' : 'right');
+    const setVfx = slapLeft ? setLeftSlashActive : setRightSlashActive;
+    setVfx(true);
+    setTimeout(() => setVfx(false), ANIM_TIMINGS.VFX_DURATION);
+
+    if (activeTimeline.current) activeTimeline.current.kill();
+    
+    gsap.set(targetOffsetRef.position, { x: 0, y: 0, z: 0 });
+    gsap.set(targetOffsetRef.rotation, { x: 0, y: 0, z: 0 });
+
+    const sideSign = slapLeft ? -1 : 1;
+    activeTimeline.current = gsap.timeline()
+      .to(targetOffsetRef.position, {
+        x: -0.2 * sideSign,
+        y: 0.68,
+        z: 0.15,
+        duration: ANIM_TIMINGS.SLAP_WIND_UP,
+        ease: 'power2.out'
+      })
+      .to(targetOffsetRef.rotation, {
+        x: -0.1,
+        y: -0.5 * sideSign,
+        z: 0.45 * sideSign,
+        duration: ANIM_TIMINGS.SLAP_WIND_UP
+      }, '<')
+      .to(targetOffsetRef.position, {
+        x: 0.8 * sideSign,
+        y: 0.62,
+        z: -0.38,
+        duration: ANIM_TIMINGS.SLAP_IMPACT,
+        ease: 'power3.out'
+      })
+      .to(targetOffsetRef.rotation, {
+        x: 0.15,
+        y: -1.35 * sideSign,
+        z: 0.8 * sideSign,
+        duration: ANIM_TIMINGS.SLAP_IMPACT
+      }, '<')
+      .to(targetOffsetRef.position, {
+        x: 0,
+        y: 0,
+        z: 0,
+        duration: ANIM_TIMINGS.SLAP_RETURN,
+        ease: 'power2.out',
+        onComplete: () => setIsClenched('none')
+      })
+      .to(targetOffsetRef.rotation, {
+        x: 0,
+        y: 0,
+        z: 0,
+        duration: ANIM_TIMINGS.SLAP_RETURN
+      }, '<');
+  };
+
+  const executeKnife = (slashLeft: boolean) => {
+    const targetOffsetRef = slashLeft ? leftHandOffsetGroupRef.current : rightHandOffsetGroupRef.current;
+    const activeTimeline = slashLeft ? leftTimelineRef : rightTimelineRef;
+
+    if (!targetOffsetRef) return;
+
+    const setVfx = slashLeft ? setLeftSlashActive : setRightSlashActive;
+    setVfx(true);
+    setTimeout(() => setVfx(false), ANIM_TIMINGS.VFX_DURATION);
+
+    if (activeTimeline.current) activeTimeline.current.kill();
+    
+    gsap.set(targetOffsetRef.position, { x: 0, y: 0, z: 0 });
+    gsap.set(targetOffsetRef.rotation, { x: 0, y: 0, z: 0 });
+
+    const sideSign = slashLeft ? -1 : 1;
+    activeTimeline.current = gsap.timeline()
+      .to(targetOffsetRef.position, {
+        x: -0.2 * sideSign,
+        y: 0.4,
+        z: -0.2,
+        duration: ANIM_TIMINGS.KNIFE_WIND_UP,
+        ease: 'power2.out'
+      })
+      .to(targetOffsetRef.rotation, {
+        x: -0.4,
+        y: 0.6 * sideSign,
+        z: -0.1 * sideSign,
+        duration: ANIM_TIMINGS.KNIFE_WIND_UP
+      }, '<')
+      .to(targetOffsetRef.position, {
+        x: 0.65 * sideSign,
+        y: -0.12,
+        z: 0.4,
+        duration: ANIM_TIMINGS.KNIFE_SLASH,
+        ease: 'power3.inOut'
+      })
+      .to(targetOffsetRef.rotation, {
+        x: 0.6,
+        y: -0.8 * sideSign,
+        z: 0.8 * sideSign,
+        duration: ANIM_TIMINGS.KNIFE_SLASH
+      }, '<')
+      .to(targetOffsetRef.position, {
+        x: 0,
+        y: 0,
+        z: 0,
+        duration: ANIM_TIMINGS.KNIFE_RETURN,
+        ease: 'power2.out'
+      })
+      .to(targetOffsetRef.rotation, {
+        x: 0,
+        y: 0,
+        z: 0,
+        duration: ANIM_TIMINGS.KNIFE_RETURN
+      }, '<');
+  };
+
+  const executeHandgun = (shootLeft: boolean) => {
+    const targetOffsetRef = shootLeft ? leftHandOffsetGroupRef.current : rightHandOffsetGroupRef.current;
+    const activeTimeline = shootLeft ? leftTimelineRef : rightTimelineRef;
+
+    if (!targetOffsetRef) return;
+
+    const setFlash = shootLeft ? setLeftFlashActive : setRightFlashActive;
+    const setTracer = shootLeft ? setLeftTracerActive : setRightTracerActive;
+    
+    setFlash(true);
+    setTracer(true);
+    setTimeout(() => setFlash(false), ANIM_TIMINGS.FLASH_DURATION);
+    setTimeout(() => setTracer(false), ANIM_TIMINGS.TRACER_DURATION);
+
+    if (activeTimeline.current) activeTimeline.current.kill();
+
+    gsap.set(targetOffsetRef.position, { x: 0, y: 0, z: 0 });
+    gsap.set(targetOffsetRef.rotation, { x: 0, y: 0, z: 0 });
+
+    const sideSign = shootLeft ? -1 : 1;
+    activeTimeline.current = gsap.timeline()
+      .to(targetOffsetRef.position, {
+        x: -0.01 * sideSign,
+        y: 0.08,
+        z: -0.12,
+        duration: ANIM_TIMINGS.GUN_RECOIL,
+        ease: 'circ.out'
+      })
+      .to(targetOffsetRef.rotation, {
+        x: 0.28,
+        y: 0,
+        z: 0,
+        duration: ANIM_TIMINGS.GUN_RECOIL
+      }, '<')
+      .to(targetOffsetRef.position, {
+        x: 0,
+        y: 0,
+        z: 0,
+        duration: ANIM_TIMINGS.GUN_SETTLE,
+        ease: 'power2.out'
+      })
+      .to(targetOffsetRef.rotation, {
+        x: 0,
+        y: 0,
+        z: 0,
+        duration: ANIM_TIMINGS.GUN_SETTLE
+      }, '<');
+  };
+
   useGSAP(() => {
     if (attackTrigger === 0) return;
 
-    if (currentWeapon === 'slap') {
-      sound.playSlap();
-      const slapLeft = punchLeft.current;
-      const targetOffsetRef = slapLeft ? leftHandOffsetGroupRef.current : rightHandOffsetGroupRef.current;
-      const activeTimeline = slapLeft ? leftTimelineRef : rightTimelineRef;
-
-      if (slapLeft) {
-        setLeftSlashActive(true); // Re-use the dynamic sweep trace for motion feedback
-        setTimeout(() => setLeftSlashActive(false), 160);
-      } else {
-        setRightSlashActive(true);
-        setTimeout(() => setRightSlashActive(false), 160);
-      }
-
-      if (targetOffsetRef) {
-        setIsClenched(slapLeft ? 'left' : 'right');
-        
-        // Fully abort any previous timeline queue to avoid overlap freezing
-        if (activeTimeline.current) {
-          activeTimeline.current.kill();
-        }
-        
-        // Reset local offset dimensions to exactly neutral starting frame
-        gsap.set(targetOffsetRef.position, { x: 0, y: 0, z: 0 });
-        gsap.set(targetOffsetRef.rotation, { x: 0, y: 0, z: 0 });
-
-        const sideSign = slapLeft ? -1 : 1;
-        // Wide outward horizontal wind-up, aggressive cheek-level face slap swing-across, and smooth return
-        activeTimeline.current = gsap.timeline()
-          .to(targetOffsetRef.position, {
-            x: -0.2 * sideSign, // wind up slightly to the side
-            y: 0.68,            // raise to cheek/face level
-            z: 0.15,            // pull back slightly (positive Z moves away in cleaned space)
-            duration: 0.10,
-            ease: 'power2.out'
-          })
-          .to(targetOffsetRef.rotation, {
-            x: -0.1,
-            y: -0.5 * sideSign,
-            z: 0.45 * sideSign,
-            duration: 0.10
-          }, '<')
-          .to(targetOffsetRef.position, {
-            x: 0.8 * sideSign,  // swishes forceful slap arc clean across the face
-            y: 0.62,            // maintain cheek/jaw contact height
-            z: -0.38,           // slap forward contact (negative Z moves forward)
-            duration: 0.08,
-            ease: 'power3.out'
-          })
-          .to(targetOffsetRef.rotation, {
-            x: 0.15,
-            y: -1.35 * sideSign, // flat slap impact pitch angle
-            z: 0.8 * sideSign,
-            duration: 0.08
-          }, '<')
-          .to(targetOffsetRef.position, {
-            x: 0,
-            y: 0,
-            z: 0,
-            duration: 0.22,
-            ease: 'power2.out',
-            onComplete: () => {
-              setIsClenched('none');
-            }
-          })
-          .to(targetOffsetRef.rotation, {
-            x: 0,
-            y: 0,
-            z: 0,
-            duration: 0.22
-          }, '<');
-      }
-      punchLeft.current = !punchLeft.current;
-    } else if (currentWeapon === 'knife') {
-      sound.playSlash();
-      const slashLeft = punchLeft.current;
-      const targetOffsetRef = slashLeft ? leftHandOffsetGroupRef.current : rightHandOffsetGroupRef.current;
-      const activeTimeline = slashLeft ? leftTimelineRef : rightTimelineRef;
-
-      if (slashLeft) {
-        setLeftSlashActive(true);
-        setTimeout(() => setLeftSlashActive(false), 160);
-      } else {
-        setRightSlashActive(true);
-        setTimeout(() => setRightSlashActive(false), 160);
-      }
-
-      if (targetOffsetRef) {
-        // Fully abort any previous timeline queue to avoid overlap freezing
-        if (activeTimeline.current) {
-          activeTimeline.current.kill();
-        }
-        
-        // Reset local offset dimensions to exactly neutral starting frame
-        gsap.set(targetOffsetRef.position, { x: 0, y: 0, z: 0 });
-        gsap.set(targetOffsetRef.rotation, { x: 0, y: 0, z: 0 });
-
-        const sideSign = slashLeft ? -1 : 1;
-        // RAISE & DIAGONAL CUT: raise knife high then execute a perfect swishing diagonal slash, returning cleanly to [0,0,0]
-        activeTimeline.current = gsap.timeline()
-          .to(targetOffsetRef.position, {
-            x: -0.15 * sideSign,
-            y: 0.4,             // raise high
-            z: -0.2,            // pull back
-            duration: 0.10,
-            ease: 'power2.out'
-          })
-          .to(targetOffsetRef.rotation, {
-            x: -0.4,
-            y: 0.6 * sideSign,
-            z: -0.1 * sideSign,
-            duration: 0.10
-          }, '<')
-          .to(targetOffsetRef.position, {
-            x: 0.65 * sideSign,  // slash across
-            y: -0.12,            // diagonal downward motion
-            z: 0.4,              // cut forward
-            duration: 0.10,
-            ease: 'power3.inOut'
-          })
-          .to(targetOffsetRef.rotation, {
-            x: 0.6,
-            y: -0.8 * sideSign,
-            z: 0.8 * sideSign,
-            duration: 0.10
-          }, '<')
-          .to(targetOffsetRef.position, {
-            x: 0,
-            y: 0,
-            z: 0,
-            duration: 0.25,
-            ease: 'power2.out'
-          })
-          .to(targetOffsetRef.rotation, {
-            x: 0,
-            y: 0,
-            z: 0,
-            duration: 0.25
-          }, '<');
-      }
-      punchLeft.current = !punchLeft.current;
-    } else if (currentWeapon === 'handgun') {
-      sound.playShoot();
-      cameraShakeVel.current = 0.55;
-
-      const shootLeft = punchLeft.current;
-      const targetOffsetRef = shootLeft ? leftHandOffsetGroupRef.current : rightHandOffsetGroupRef.current;
-      const activeTimeline = shootLeft ? leftTimelineRef : rightTimelineRef;
-
-      if (shootLeft) {
-        setLeftFlashActive(true);
-        setLeftTracerActive(true);
-        setTimeout(() => setLeftFlashActive(false), 55);
-        setTimeout(() => setLeftTracerActive(false), 90);
-      } else {
-        setRightFlashActive(true);
-        setRightTracerActive(true);
-        setTimeout(() => setRightFlashActive(false), 55);
-        setTimeout(() => setRightTracerActive(false), 90);
-      }
-
-      if (targetOffsetRef) {
-        // Fully abort any previous timeline queue to avoid overlap freezing
-        if (activeTimeline.current) {
-          activeTimeline.current.kill();
-        }
-        
-        // Reset local offset dimensions to exactly neutral starting frame
-        gsap.set(targetOffsetRef.position, { x: 0, y: 0, z: 0 });
-        gsap.set(targetOffsetRef.rotation, { x: 0, y: 0, z: 0 });
-
-        const sideSign = shootLeft ? -1 : 1;
-
-        activeTimeline.current = gsap.timeline()
-          .to(targetOffsetRef.position, {
-            x: -0.01 * sideSign,
-            y: 0.08,             // subtle trigger lift
-            z: -0.12,            // push back (recoil)
-            duration: 0.04,
-            ease: 'circ.out'
-          })
-          .to(targetOffsetRef.rotation, {
-            x: 0.28,             // barrel muzzle flip upward
-            y: 0,
-            z: 0,
-            duration: 0.04
-          }, '<')
-          .to(targetOffsetRef.position, {
-            x: 0,
-            y: 0,
-            z: 0,
-            duration: 0.18,
-            ease: 'power2.out'
-          })
-          .to(targetOffsetRef.rotation, {
-            x: 0,
-            y: 0,
-            z: 0,
-            duration: 0.18
-          }, '<');
-      }
-      punchLeft.current = !punchLeft.current;
+    const isLeft = punchLeft.current;
+    switch (currentWeapon) {
+      case 'slap':
+        sound.playSlap();
+        executeSlap(isLeft);
+        break;
+      case 'knife':
+        sound.playSlash();
+        executeKnife(isLeft);
+        break;
+      case 'handgun':
+        sound.playShoot();
+        cameraShakeVel.current = 0.55;
+        executeHandgun(isLeft);
+        break;
     }
+    punchLeft.current = !punchLeft.current;
   }, { dependencies: [attackTrigger] });
+
+  const getHandPose = (
+    isLeft: boolean, 
+    weapon: string, 
+    breath: number, 
+    swingY: number, 
+    swingZ: number, 
+    lagY: number, 
+    time: number
+  ) => {
+    const side = isLeft ? 1 : -1;
+    const pitch = swingZ * 0.55;
+    const yaw = Math.sin(time * ANIM_TIMINGS.WALK_SPEED) * 0.08;
+    
+    const targetPos = new THREE.Vector3();
+    const targetRot = new THREE.Vector3();
+
+    if (weapon === 'handgun') {
+      targetPos.set(-0.45 * side, 0.82 + breath + swingY + lagY, 0.46 - swingZ * 0.4 * side);
+      targetRot.set(Math.PI / 2 + pitch * 0.2 * side, (Math.PI / 2) * side, 0);
+    } else if (weapon === 'knife') {
+      targetPos.set(-0.48 * side, 0.82 + breath + swingY + lagY, 0.42 - swingZ * 0.65 * side);
+      targetRot.set(0.24 + pitch * 0.4 * side, 0.15 * side, (Math.PI / 4 + Math.sin(time * 1.4) * 0.015) * side);
+    } else {
+      targetPos.set(-0.46 * side, 0.58 + breath * 0.2 + swingY * 1.5 + lagY, 0.05 - swingZ * 0.95 * side);
+      targetRot.set(Math.PI + pitch * 1.1 * side, (-1.2 + yaw * 0.4) * side, (1.1 + swingY * 0.15) * side);
+    }
+    return { targetPos, targetRot };
+  };
 
   // Main R3F frame tick loop for physics, screenshake & walk hand-swing bobs
   useFrame((state, delta) => {
     const effectiveDelta = delta * (weaponWheelOpen ? 0.15 : 1.0);
     
-    // Accumulate custom timing delta for perfect scale-dilation
     cumulativeTime.current += effectiveDelta;
     const time = cumulativeTime.current;
 
@@ -1022,16 +974,13 @@ export const Player = React.memo(({
     const jump = mvJump.get() > 0.5;
     const { camera } = state;
 
-    // Get current position & velocity from Rapier rigidbody
-    const rbPos = rigidBodyRef.current ? rigidBodyRef.current.translation() : { x: 0, y: 0, z: 0 };
-    const rbVel = rigidBodyRef.current ? rigidBodyRef.current.linvel() : { x: 0, y: 0, z: 0 };
+    const rbPos = rigidBodyRef.current?.translation() || { x: 0, y: 0, z: 0 };
+    const rbVel = rigidBodyRef.current?.linvel() || { x: 0, y: 0, z: 0 };
 
-    // Sync pos.current with Rapier coordinate
     pos.current.x = rbPos.x;
     pos.current.y = rbPos.y;
     pos.current.z = rbPos.z;
 
-    // Direct screen camera rebound
     if (cameraShakeVel.current > 0.01) {
       const amp = cameraShakeVel.current * 0.4;
       camera.position.x += (Math.random() - 0.5) * amp;
@@ -1040,111 +989,43 @@ export const Player = React.memo(({
       cameraShakeVel.current *= 0.8;
     }
 
-    // Physical landing detection (Y coordinate near ground top surface ~0.02)
     const landed = pos.current.y <= 0.05 && lastYPos.current > 0.05;
     lastYPos.current = pos.current.y;
-    if (landed) {
-      jumpImpactLag.current = -0.16; // Compress posture
-    }
+    if (landed) jumpImpactLag.current = -0.16;
     jumpImpactLag.current = THREE.MathUtils.lerp(jumpImpactLag.current, 0, 1 - Math.exp(-8 * effectiveDelta));
 
-    // Stethoscopic chest breathing expansions & body bobs
-    const breath = Math.sin(time * breathFreq) * 0.035;
+    const breath = Math.sin(time * ANIM_TIMINGS.BREATH_FREQ) * 0.035;
 
     if (bodyRef.current) {
-      bodyRef.current.scale.set(1, 1, 1);
-      bodyRef.current.position.y = 0.8 + Math.sin(time * breathFreq) * 0.014 + jumpImpactLag.current * 0.6;
+      bodyRef.current.position.y = 0.8 + Math.sin(time * ANIM_TIMINGS.BREATH_FREQ) * 0.014 + jumpImpactLag.current * 0.6;
     }
 
     const speed = Math.sqrt(x ** 2 + y ** 2);
-
-    // Timing parameters for walk locomotion cycle
     const swingFactor = weaponWheelOpen ? 0.35 : 1.0;
-    const targetSwingZ = speed > 0.01 ? Math.sin(time * 9.5 * swingFactor) * 0.38 : 0;
-    const targetSwingY = speed > 0.01 ? Math.abs(Math.cos(time * 9.5 * swingFactor)) * 0.08 : 0;
+    const targetSwingZ = speed > 0.01 ? Math.sin(time * ANIM_TIMINGS.WALK_SPEED * swingFactor) * 0.38 : 0;
+    const targetSwingY = speed > 0.01 ? Math.abs(Math.cos(time * ANIM_TIMINGS.WALK_SPEED * swingFactor)) * 0.08 : 0;
 
-    // Decay swing movement elegantly with fluid momentum
     smoothSwingZ.current = THREE.MathUtils.lerp(smoothSwingZ.current, targetSwingZ, 1 - Math.exp(-8 * effectiveDelta));
     smoothSwingY.current = THREE.MathUtils.lerp(smoothSwingY.current, targetSwingY, 1 - Math.exp(-8 * effectiveDelta));
 
-    // Tilt hands forward and backward naturally during foot swinging
-    const pitchL = smoothSwingZ.current * 0.55;
-    const yawL = Math.sin(time * 9.5) * 0.08 * (speed > 0.01 ? 1 : 0);
-
-    // Apply inertia weight lag on arms during jump ascension & weightless descent
-    const lagY = -rbVel.y * 0.045;
-    const clampedLagY = THREE.MathUtils.clamp(lagY, -0.22, 0.22);
-
-    const targetLPos = new THREE.Vector3();
-    const targetLRot = new THREE.Vector3();
-    const targetRPos = new THREE.Vector3();
-    const targetRRot = new THREE.Vector3();
+    const lagY = THREE.MathUtils.clamp(-rbVel.y * 0.045, -0.22, 0.22);
+    const lerpFactor = 1 - Math.exp(-14 * effectiveDelta);
 
     if (leftHandPivotRef.current && rightHandPivotRef.current) {
-        // Dynamic game layout coordinates based on equipped weapons
-        if (currentWeapon === 'handgun') {
-          targetLPos.set(-0.45, 0.82 + breath + smoothSwingY.current + clampedLagY, 0.46 - smoothSwingZ.current * 0.4);
-          targetLRot.set(Math.PI / 2 + pitchL * 0.2, Math.PI / 2, 0);
-          
-          targetRPos.set(0.45, 0.82 + breath + smoothSwingY.current + clampedLagY, 0.46 + smoothSwingZ.current * 0.4);
-          targetRRot.set(Math.PI / 2 - pitchL * 0.2, -Math.PI / 2, 0);
-        } else if (currentWeapon === 'knife') {
-          targetLPos.set(-0.48, 0.82 + breath + smoothSwingY.current + clampedLagY, 0.42 - smoothSwingZ.current * 0.65);
-          targetLRot.set(0.24 + pitchL * 0.4, 0.15, Math.PI / 4 + Math.sin(time * 1.4) * 0.015);
+      const leftPose = getHandPose(true, currentWeapon, breath, smoothSwingY.current, smoothSwingZ.current, lagY, time);
+      const rightPose = getHandPose(false, currentWeapon, breath, smoothSwingY.current, smoothSwingZ.current, lagY, time);
 
-          targetRPos.set(0.48, 0.82 + breath + smoothSwingY.current + clampedLagY, 0.42 + smoothSwingZ.current * 0.65);
-          targetRRot.set(0.24 - pitchL * 0.4, -0.15, -Math.PI / 4 - Math.sin(time * 1.4) * 0.015);
-        } else {
-          targetLPos.set(
-            -0.46, 
-            0.58 + breath * 0.2 + smoothSwingY.current * 1.5 + clampedLagY, 
-            0.05 - smoothSwingZ.current * 0.95
-          );
-          targetLRot.set(
-            Math.PI + pitchL * 1.1, 
-            -1.2 + yawL * 0.4, 
-            1.1 + smoothSwingY.current * 0.15
-          );
+      handLeftPosActual.current.lerp(leftPose.targetPos, lerpFactor);
+      handLeftRotActual.current.lerp(leftPose.targetRot, lerpFactor);
+      leftHandPivotRef.current.position.copy(handLeftPosActual.current).y += jumpImpactLag.current;
+      leftHandPivotRef.current.rotation.setFromVector3(handLeftRotActual.current);
 
-          targetRPos.set(
-            0.46, 
-            0.58 + breath * 0.2 + smoothSwingY.current * 1.5 + clampedLagY, 
-            0.05 + smoothSwingZ.current * 0.95
-          );
-          targetRRot.set(
-            Math.PI - pitchL * 1.1, 
-            1.2 - yawL * 0.4, 
-            -1.1 - smoothSwingY.current * 0.15
-          );
-        }
-
-      // Smooth lag spring interpolation towards final orientations
-      const lerpFactor = 1 - Math.exp(-14 * effectiveDelta); // Fast, snappy but elastic
-
-      handLeftPosActual.current.lerp(targetLPos, lerpFactor);
-      handLeftRotActual.current.lerp(targetLRot, lerpFactor);
-
-      leftHandPivotRef.current.position.copy(handLeftPosActual.current);
-      leftHandPivotRef.current.position.y += jumpImpactLag.current;
-      leftHandPivotRef.current.rotation.set(
-        handLeftRotActual.current.x,
-        handLeftRotActual.current.y,
-        handLeftRotActual.current.z
-      );
-
-      handRightPosActual.current.lerp(targetRPos, lerpFactor);
-      handRightRotActual.current.lerp(targetRRot, lerpFactor);
-
-      rightHandPivotRef.current.position.copy(handRightPosActual.current);
-      rightHandPivotRef.current.position.y += jumpImpactLag.current;
-      rightHandPivotRef.current.rotation.set(
-        handRightRotActual.current.x,
-        handRightRotActual.current.y,
-        handRightRotActual.current.z
-      );
+      handRightPosActual.current.lerp(rightPose.targetPos, lerpFactor);
+      handRightRotActual.current.lerp(rightPose.targetRot, lerpFactor);
+      rightHandPivotRef.current.position.copy(handRightPosActual.current).y += jumpImpactLag.current;
+      rightHandPivotRef.current.rotation.setFromVector3(handRightRotActual.current);
     }
 
-    // Flame rocket dynamics
     if (jump !== lastJump.current) {
       lastJump.current = jump;
       if (flameRef.current) {
@@ -1159,7 +1040,6 @@ export const Player = React.memo(({
       }
     }
 
-    // Camera relative calculations for physics movement velocity
     if (speed > 0.01) {
       const forward = new THREE.Vector3();
       camera.getWorldDirection(forward);
@@ -1195,14 +1075,12 @@ export const Player = React.memo(({
       velocity.current.z = THREE.MathUtils.lerp(rbVel.z, 0, 0.18);
     }
 
-    // Jetpack upward boost physics
     if (jump) {
       velocity.current.y = Math.min(rbVel.y + 40 * effectiveDelta, 12);
     } else {
       velocity.current.y = rbVel.y;
     }
 
-    // Direct linear velocity registration to Rapier
     if (rigidBodyRef.current) {
       rigidBodyRef.current.setLinvel({
         x: velocity.current.x,
@@ -1211,20 +1089,13 @@ export const Player = React.memo(({
       }, true);
     }
 
-    // The Rigidbody handles position update automatically, prevent setting characterRef coords manually
-    if (characterRef.current) {
-      characterRef.current.position.set(0, 0, 0);
-    }
-
-    // Alternate leg swings in movement direction
     if (speed > 0.01) {
-      const legRotation = Math.sin(time * 9.5 * swingFactor) * 0.48;
+      const legRotation = Math.sin(time * ANIM_TIMINGS.WALK_SPEED * swingFactor) * 0.48;
       if (leftLegRef.current) leftLegRef.current.rotation.x = legRotation;
       if (rightLegRef.current) rightLegRef.current.rotation.x = -legRotation;
 
-      // Sync footstep sound thuds to when legs swing past neutral on solid ground
       if (pos.current.y <= 0.05) {
-        const currentSign = Math.sin(time * 9.5 * swingFactor) >= 0 ? 1 : -1;
+        const currentSign = Math.sin(time * ANIM_TIMINGS.WALK_SPEED * swingFactor) >= 0 ? 1 : -1;
         if (lastLegSwingSignCheck.current !== currentSign) {
           lastLegSwingSignCheck.current = currentSign;
           sound.playWalk();
@@ -1237,13 +1108,9 @@ export const Player = React.memo(({
     }
   });
 
-  // Calculate matching grip states for hands
-  const getGripType = (isHandLeft: boolean) => {
+  const getGripType = (isHandLeft: boolean): GripType => {
     if (currentWeapon === 'handgun') return 'pistol';
     if (currentWeapon === 'knife') return 'knife';
-    // Slapping stays wide-open flat hand
-    if (isHandLeft && isClenched === 'left') return 'open';
-    if (!isHandLeft && isClenched === 'right') return 'open';
     return 'open';
   };
 

@@ -14,6 +14,13 @@ A log of all tasks, ideas, and progress for this project.
 
 ## Done
 
+-   **[2026-05-23 04:12]**: Performance & Structural Refactor of `Player.tsx`.
+    -   Implemented `SHARED_GEOMETRY` memoization for all phalanx bones.
+    -   Reused materials in `HandgunAttachment` to prevent garbage collection spikes.
+    -   Modularized `useGSAP` attack logic into `executeSlap`, `executeKnife`, and `executeHandgun`.
+    -   Centralized hand positioning math into `getHandPose` helper.
+    -   Extracted magic numbers to `ANIM_TIMINGS` configuration object.
+    -   Enforced strict TypeScript unions and safe reference handling.
 -   **[2026-05-22 18:07]**: Resolved weapon animation freezing and backwards slap trajectories. Keyboard auto-repeat keypresses are now throttled (`e.repeat` early termination), and rather than killing active object tweens, we track active arm timelines (`leftTimelineRef` & `rightTimelineRef`) and call `.kill()` directly on them with a full reset (`gsap.set`) on new taps to eliminate overlapping queued actions. Inverted slap animation Z properties (`z: 0.15` wind-up, `z: -0.38` hit coords) to perfectly match the 180° rotated hand parent coordinate frame, yielding clean, forward-slaps.
 -   **[2026-05-22 20:30]**: Anatomical Thumb Realignment. Fixed the issue where the thumb was incorrectly positioned on the "bottom" side of the hand mesh in neutral and weapon-holding states. Applied a `Math.PI` (180 degree) offset to all `targetThumbY` rotation calculations in the `useFrame` loop. This flips the thumb segment's local Y-axis heliocentrically, placing it on the "top" of the palm as requested.
 -   **[2026-05-22 17:59]**: Fixed slap strike height offset behavior. Because the hand pivot has a resting Z-rotation of `Math.PI` (180 degrees) to pointing thumbs upright, the local Y coordinate space is mathematically inverted. Inverting the GSAP timeline's relative Y offsets from positive to negative (`y: -0.68` and `y: -0.62`) pulls the hand directly up to cheek level during wind-up and impact, delivering a pixel-perfect, satisfying face slap.
