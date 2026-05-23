@@ -729,8 +729,8 @@ export const Player = React.memo(({
   // Elastic animation spring trackers for smooth weight & landing dynamics (Initialized to relaxed standing neutral pose to prevent startup snap)
   const handLeftPosActual = useRef(new THREE.Vector3(-0.46, 0.58, 0.05));
   const handRightPosActual = useRef(new THREE.Vector3(0.46, 0.58, 0.05));
-  const handLeftRotActual = useRef(new THREE.Vector3(Math.PI, -1.2, 1.1));
-  const handRightRotActual = useRef(new THREE.Vector3(Math.PI, 1.2, -1.1));
+  const handLeftRotActual = useRef(new THREE.Vector3(0, -1.2, 1.1));
+  const handRightRotActual = useRef(new THREE.Vector3(0, 1.2, -1.1));
 
   // Breathing & walk-sway momentum
   const cumulativeTime = useRef(0);
@@ -957,7 +957,7 @@ export const Player = React.memo(({
       targetRot.set(0.24 + pitch * 0.4 * side, 0.15 * side, (Math.PI / 4 + Math.sin(time * 1.4) * 0.015) * side);
     } else {
       targetPos.set(-0.46 * side, 0.58 + breath * 0.2 + swingY * 1.5 + lagY, 0.05 - swingZ * 0.95 * side);
-      targetRot.set(Math.PI + pitch * 1.1 * side, (-1.2 + yaw * 0.4) * side, (1.1 + swingY * 0.15) * side);
+      targetRot.set(pitch * 1.1 * side, (-1.2 + yaw * 0.4) * side, (1.1 + swingY * 0.15) * side);
     }
     return { targetPos, targetRot };
   };

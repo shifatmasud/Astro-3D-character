@@ -14,6 +14,7 @@ A log of all tasks, ideas, and progress for this project.
 
 ## Done
 
+-   **[2026-05-23 04:24]**: Resolved "Upside-down" hand bug in slap mode. Removed `Math.PI` X-rotation from `getHandPose` and initialization refs. Adjusted `executeSlap` animation logic to use standard `+y` for Up direction, ensuring hands are correctly oriented at cheek level during idle and attack.
 -   **[2026-05-23 04:12]**: Performance & Structural Refactor of `Player.tsx`.
     -   Implemented `SHARED_GEOMETRY` memoization for all phalanx bones.
     -   Reused materials in `HandgunAttachment` to prevent garbage collection spikes.

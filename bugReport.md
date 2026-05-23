@@ -41,6 +41,7 @@ Tracking all issues, from critical bugs to minor suggestions.
 -   ...
 
 ## Performance & Optimization (Improved 2026-05-23)
+-   **[2026-05-23] (Resolved)**: "Upside-down" hand orientation in slap mode. Removed unnecessary 180° inversion in the coordinate system.
 -   **[2026-05-23] (Resolved)**: Large scale code bloat in `Player.tsx`. Simplified the massive `useFrame` and `useGSAP` callbacks into modular, typed helper functions.
 -   **[2026-05-23] (Resolved)**: High garbage collection pressure from per-frame geometry creation. Staged `SHARED_GEOMETRY` pool to reuse all phalanx meshes.
 -   **[2026-05-23] (Resolved)**: Material allocation overhead in weapon attachments. Implemented material reuse via `useMemo` hooks.

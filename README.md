@@ -112,6 +112,7 @@ Imagine you're building with LEGOs. This project gives you a super organized box
 ## ⚡ Session 19 Update: Performance Refactoring & Structural Optimization
 
 ### Summary
+- **Coordinate Realignment**: Fixed the "upside-down" hand orientation in slap mode by removing the 180-degree X-axis inversion. This simplified the coordinate space and restored natural hand display at cheek level.
 - **Performance Refactor**: Optimized React Three Fiber components for 15-20% performance gains.
 - **Geometric Memoization**: Implemented `SHARED_GEOMETRY` pool for recurring spheres and cylinders, eliminating per-frame geometry allocations.
 - **Material Reuse**: Refactored `HandgunAttachment` and `ChubbyPhalanx` to use memoized `THREE.Material` instances.
